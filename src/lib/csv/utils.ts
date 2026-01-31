@@ -24,6 +24,7 @@ export function formatDate(date: Date): string {
  */
 export function formatQuantity(value: number | undefined): string {
   if (value === undefined || value === null) return "";
+  if (Number.isNaN(value) || !Number.isFinite(value)) return "";
   const abs = Math.abs(value);
   // Use toFixed(8) to avoid scientific notation, then strip trailing zeros
   const fixed = abs.toFixed(8);

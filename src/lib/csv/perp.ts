@@ -11,9 +11,14 @@ import { PERP_CSV_HEADER } from "./constants";
 
 /**
  * Format P&L — this is the one field that may be negative per Awaken spec.
+ * Uses toFixed(8) to avoid scientific notation, then strips trailing zeros.
  */
 function formatPnL(value: number): string {
-  return parseFloat(value.toFixed(8)).toString();
+  if (Number.isNaN(value) || !Number.isFinite(value)) return "0";
+  const fixed = value.toFixed(8);
+  // Remove trailing zeros after the decimal point, then trailing dot
+  const trimmed = fixed.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+  return trimmed;
 }
 
 function perpToRow(tx: PerpTransaction): string {
