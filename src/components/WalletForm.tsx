@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import type { ChainInfo } from "@/types";
 import {
   validateAddress,
@@ -15,9 +15,14 @@ export interface WalletFormProps {
   chains: ChainInfo[];
   /** Called when the user submits the form with a valid address and chain. */
   onSubmit?: (address: string, chainId: string) => void;
+  /** Called when transactions are successfully fetched. */
+  onTransactionsFetched?: (
+    transactions: import("@/types").Transaction[],
+    chainId: string,
+  ) => void;
 }
 
-export function WalletForm({ chains, onSubmit }: WalletFormProps) {
+export function WalletForm({ chains, onSubmit, onTransactionsFetched }: WalletFormProps) {
   const [address, setAddress] = useState("");
   const [selectedChainId, setSelectedChainId] = useState("");
   const [addressError, setAddressError] = useState<string | undefined>();
@@ -25,6 +30,17 @@ export function WalletForm({ chains, onSubmit }: WalletFormProps) {
   const [helpOpen, setHelpOpen] = useState(false);
 
   const fetchState = useFetchTransactions();
+
+  // Notify parent when transactions are fetched successfully
+  useEffect(() => {
+    if (
+      fetchState.status === "success" &&
+      fetchState.transactions.length > 0 &&
+      selectedChainId
+    ) {
+      onTransactionsFetched?.(fetchState.transactions, selectedChainId);
+    }
+  }, [fetchState.status, fetchState.transactions, selectedChainId, onTransactionsFetched]);
 
   const enabledChains = useMemo(
     () => chains.filter((c) => c.enabled),
