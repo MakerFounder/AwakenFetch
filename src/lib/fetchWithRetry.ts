@@ -23,6 +23,10 @@ export interface FetchWithRetryOptions {
   baseDelayMs?: number;
   /** Label used in error messages (e.g. "Taostats API"). */
   errorLabel?: string;
+  /** HTTP method (default: "GET"). */
+  method?: string;
+  /** Request body (for POST/PUT requests). */
+  body?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -69,6 +73,7 @@ export async function fetchWithRetry<T>(
   const maxRetries = options?.maxRetries ?? DEFAULT_MAX_RETRIES;
   const baseDelayMs = options?.baseDelayMs ?? DEFAULT_BASE_DELAY_MS;
   const errorLabel = options?.errorLabel ?? "API";
+  const method = options?.method ?? "GET";
   const headers: Record<string, string> = {
     accept: "application/json",
     ...options?.headers,
@@ -78,7 +83,11 @@ export async function fetchWithRetry<T>(
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const response = await fetch(url, { headers });
+      const fetchInit: RequestInit = { method, headers };
+      if (options?.body) {
+        fetchInit.body = options.body;
+      }
+      const response = await fetch(url, fetchInit);
 
       if (response.status === 429) {
         // Rate limited — back off and retry

@@ -76,9 +76,9 @@ describe("fetchWithRetry", () => {
 
     await fetchWithRetry("https://api.example.com/data");
 
-    expect(mockFetch).toHaveBeenCalledWith("https://api.example.com/data", {
+    expect(mockFetch).toHaveBeenCalledWith("https://api.example.com/data", expect.objectContaining({
       headers: expect.objectContaining({ accept: "application/json" }),
-    });
+    }));
   });
 
   it("merges custom headers with defaults", async () => {
@@ -88,12 +88,12 @@ describe("fetchWithRetry", () => {
       headers: { Authorization: "Bearer token123" },
     });
 
-    expect(mockFetch).toHaveBeenCalledWith("https://api.example.com/data", {
+    expect(mockFetch).toHaveBeenCalledWith("https://api.example.com/data", expect.objectContaining({
       headers: expect.objectContaining({
         accept: "application/json",
         Authorization: "Bearer token123",
       }),
-    });
+    }));
   });
 
   it("retries on HTTP 429 with exponential backoff", async () => {
