@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import type { ChainInfo } from "@/types";
+import {
+  validateAddress,
+  getAddressPlaceholder,
+} from "@/lib/validateAddress";
 
 export interface WalletFormProps {
   /** Available chains to display in the selector. */
@@ -13,19 +17,64 @@ export interface WalletFormProps {
 export function WalletForm({ chains, onSubmit }: WalletFormProps) {
   const [address, setAddress] = useState("");
   const [selectedChainId, setSelectedChainId] = useState("");
+  const [addressError, setAddressError] = useState<string | undefined>();
+  const [touched, setTouched] = useState(false);
 
   const enabledChains = useMemo(
     () => chains.filter((c) => c.enabled),
     [chains],
   );
 
-  const isFormValid = address.trim().length > 0 && selectedChainId.length > 0;
+  const runValidation = useCallback(
+    (addr: string, chainId: string): boolean => {
+      if (!addr.trim() || !chainId) {
+        setAddressError(undefined);
+        return false;
+      }
+      const result = validateAddress(addr, chainId);
+      setAddressError(result.error);
+      return result.valid;
+    },
+    [],
+  );
+
+  const isFormValid =
+    address.trim().length > 0 &&
+    selectedChainId.length > 0 &&
+    !addressError;
+
+  function handleAddressChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const value = e.target.value;
+    setAddress(value);
+    if (touched && selectedChainId) {
+      runValidation(value, selectedChainId);
+    }
+  }
+
+  function handleAddressBlur() {
+    setTouched(true);
+    if (address.trim() && selectedChainId) {
+      runValidation(address, selectedChainId);
+    }
+  }
+
+  function handleChainChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const chainId = e.target.value;
+    setSelectedChainId(chainId);
+    if (touched && address.trim()) {
+      runValidation(address, chainId);
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!isFormValid) return;
+    setTouched(true);
+    const valid = runValidation(address, selectedChainId);
+    if (!valid) return;
     onSubmit?.(address.trim(), selectedChainId);
   }
+
+  const placeholder = getAddressPlaceholder(selectedChainId);
 
   return (
     <form
@@ -43,7 +92,7 @@ export function WalletForm({ chains, onSubmit }: WalletFormProps) {
         <select
           id="chain-select"
           value={selectedChainId}
-          onChange={(e) => setSelectedChainId(e.target.value)}
+          onChange={handleChainChange}
           className="cursor-pointer rounded-lg border border-foreground/20 bg-background px-3 py-2.5 text-sm text-foreground transition-colors hover:border-foreground/40 focus:border-foreground/60 focus:outline-none"
         >
           <option value="">Select a chain…</option>
@@ -67,12 +116,28 @@ export function WalletForm({ chains, onSubmit }: WalletFormProps) {
           id="wallet-address"
           type="text"
           value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          placeholder="Enter your public wallet address"
+          onChange={handleAddressChange}
+          onBlur={handleAddressBlur}
+          placeholder={placeholder}
           autoComplete="off"
           spellCheck={false}
-          className="rounded-lg border border-foreground/20 bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-foreground/40 transition-colors hover:border-foreground/40 focus:border-foreground/60 focus:outline-none"
+          aria-invalid={!!addressError}
+          aria-describedby={addressError ? "address-error" : undefined}
+          className={`rounded-lg border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-foreground/40 transition-colors hover:border-foreground/40 focus:outline-none ${
+            addressError
+              ? "border-red-500 focus:border-red-500"
+              : "border-foreground/20 focus:border-foreground/60"
+          }`}
         />
+        {addressError && (
+          <p
+            id="address-error"
+            role="alert"
+            className="text-xs text-red-500"
+          >
+            {addressError}
+          </p>
+        )}
       </div>
 
       {/* Submit button */}
