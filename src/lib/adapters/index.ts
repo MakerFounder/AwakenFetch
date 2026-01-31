@@ -6,26 +6,24 @@
  */
 
 import type { ChainAdapter, ChainInfo } from "@/types";
+import { ChainAdapterRegistry } from "./registry";
 
-/** Map of chainId → ChainAdapter instance. */
-const adapters = new Map<string, ChainAdapter>();
+export { ChainAdapterRegistry } from "./registry";
 
-/** Register a chain adapter. */
+/** Default (global) registry instance used by convenience helpers. */
+export const registry = new ChainAdapterRegistry();
+
+/** Register a chain adapter on the default registry. */
 export function registerAdapter(adapter: ChainAdapter): void {
-  adapters.set(adapter.chainId, adapter);
+  registry.register(adapter);
 }
 
-/** Retrieve an adapter by chainId, or undefined if not registered. */
+/** Retrieve an adapter by chainId from the default registry, or undefined if not registered. */
 export function getAdapter(chainId: string): ChainAdapter | undefined {
-  return adapters.get(chainId);
+  return registry.get(chainId);
 }
 
-/** Return metadata for all registered (enabled) chains. */
+/** Return metadata for all registered (enabled) chains on the default registry. */
 export function getAvailableChains(): ChainInfo[] {
-  return Array.from(adapters.values()).map((a) => ({
-    chainId: a.chainId,
-    chainName: a.chainName,
-    ticker: a.chainId.toUpperCase(),
-    enabled: true,
-  }));
+  return registry.getAvailableChains();
 }

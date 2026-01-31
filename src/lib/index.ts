@@ -5,6 +5,8 @@
  */
 
 export {
+  ChainAdapterRegistry,
+  registry,
   registerAdapter,
   getAdapter,
   getAvailableChains,
