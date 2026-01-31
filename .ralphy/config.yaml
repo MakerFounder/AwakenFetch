@@ -1,0 +1,35 @@
+# Ralphy Configuration
+# https://github.com/michaelshimeles/ralphy
+
+project:
+  name: "AwakenFetch"
+  language: "TypeScript"
+  framework: "Next.js 16"
+  description: "Web app that fetches crypto transactions and exports Awaken Tax-compliant CSVs"
+
+commands:
+  test: "pnpm test"
+  lint: "pnpm lint"
+  build: "pnpm build"
+
+rules:
+  - "Use Next.js 16 App Router with TypeScript strict mode and Tailwind CSS"
+  - "Use server actions instead of API routes where possible"
+  - "Use Context7 MCP (context7:resolve-library-id then context7:query-docs) to fetch up-to-date documentation for any library or framework before implementing"
+  - "Use web search to look up chain explorer API docs, endpoints, and response formats when building chain adapters"
+  - "Follow the TypeScript interfaces (ChainAdapter, Transaction, PerpTransaction, FetchOptions) defined in docs/prd.md Section 6"
+  - "Follow the Awaken CSV column specs exactly as defined in docs/prd.md Appendix A"
+  - "Reference docs/prd.md for detailed requirements, acceptance criteria, and example CSV rows"
+  - "All dates must be formatted as MM/DD/YYYY HH:MM:SS in UTC"
+  - "No negative numbers in standard CSV quantity columns; max 8 decimal places"
+  - "When building UI components or pages, use the frontend-design skill for high-quality, polished interfaces"
+  - "Use cursor-pointer on all interactive elements"
+  - "Handle API rate limits with exponential backoff (max 3 retries)"
+  - "Never request or handle wallet private keys -- public addresses only"
+  - "API keys for chain explorers must be stored as environment variables, never exposed to the client"
+
+boundaries:
+  never_touch:
+    - "docs/**"
+    - "*.lock"
+    - ".ralphy/**"
