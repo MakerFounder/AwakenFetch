@@ -10,6 +10,7 @@ import { useState, useMemo, useCallback } from "react";
 import type { ChainInfo, Transaction, TransactionType } from "@/types";
 import { WalletForm } from "@/components/WalletForm";
 import { TransactionTable } from "@/components/TransactionTable";
+import { TransactionTableSkeleton } from "@/components/TransactionTableSkeleton";
 import {
   TransactionTypeFilter,
   getAvailableTypes,
@@ -25,6 +26,7 @@ export function Dashboard({ chains }: DashboardProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [activeChainId, setActiveChainId] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<TransactionType | "" | "needs_review">("");
+  const [isFetching, setIsFetching] = useState(false);
 
   const handleTransactionsFetched = (
     txs: Transaction[],
@@ -63,6 +65,10 @@ export function Dashboard({ chains }: DashboardProps) {
     [filteredTransactions],
   );
 
+  const handleLoadingChange = useCallback((isLoading: boolean) => {
+    setIsFetching(isLoading);
+  }, []);
+
   return (
     <div className="flex w-full flex-col items-center gap-8">
       <div className="flex w-full max-w-xl flex-col items-center gap-8">
@@ -75,10 +81,17 @@ export function Dashboard({ chains }: DashboardProps) {
         <WalletForm
           chains={chains}
           onTransactionsFetched={handleTransactionsFetched}
+          onLoadingChange={handleLoadingChange}
         />
       </div>
 
-      {transactions.length > 0 && activeChainId && (
+      {isFetching && (
+        <div className="w-full max-w-6xl">
+          <TransactionTableSkeleton />
+        </div>
+      )}
+
+      {!isFetching && transactions.length > 0 && activeChainId && (
         <div className="w-full max-w-6xl">
           <div className="mb-4">
             <TransactionTypeFilter

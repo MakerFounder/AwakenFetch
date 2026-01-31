@@ -25,9 +25,11 @@ export interface WalletFormProps {
     transactions: import("@/types").Transaction[],
     chainId: string,
   ) => void;
+  /** Called when the fetch loading state changes. */
+  onLoadingChange?: (isLoading: boolean) => void;
 }
 
-export function WalletForm({ chains, onSubmit, onTransactionsFetched }: WalletFormProps) {
+export function WalletForm({ chains, onSubmit, onTransactionsFetched, onLoadingChange }: WalletFormProps) {
   const [address, setAddress] = useState("");
   const [selectedChainId, setSelectedChainId] = useState("");
   const [addressError, setAddressError] = useState<string | undefined>();
@@ -36,6 +38,11 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched }: WalletFo
   const [dateRange, setDateRange] = useState<DateRange>(getPreviousYearRange);
 
   const fetchState = useFetchTransactions();
+
+  // Notify parent when loading state changes
+  useEffect(() => {
+    onLoadingChange?.(fetchState.status === "loading");
+  }, [fetchState.status, onLoadingChange]);
 
   // Notify parent when transactions are fetched successfully
   useEffect(() => {
