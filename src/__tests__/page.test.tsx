@@ -1,0 +1,42 @@
+import { describe, it, expect, afterEach } from "vitest";
+import { render, cleanup, within } from "@testing-library/react";
+import Home from "@/app/page";
+
+afterEach(cleanup);
+
+describe("Home Page", () => {
+  it("renders the AwakenFetch heading", () => {
+    const { container } = render(<Home />);
+    const heading = within(container).getByRole("heading", {
+      name: /awakenfetch/i,
+    });
+    expect(heading).toBeInTheDocument();
+  });
+
+  it("renders the description text", () => {
+    const { container } = render(<Home />);
+    expect(
+      within(container).getByText(
+        /fetch crypto transactions and export awaken tax-compliant csvs/i,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the wallet form with chain selector and address input", () => {
+    const { container } = render(<Home />);
+    expect(within(container).getByLabelText(/chain/i)).toBeInTheDocument();
+    expect(
+      within(container).getByLabelText(/wallet address/i),
+    ).toBeInTheDocument();
+    expect(
+      within(container).getByRole("button", { name: /fetch transactions/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows all registered chain adapters in the dropdown", () => {
+    const { container } = render(<Home />);
+    expect(within(container).getByText(/Bittensor/)).toBeInTheDocument();
+    expect(within(container).getByText(/Kaspa/)).toBeInTheDocument();
+    expect(within(container).getByText(/Injective/)).toBeInTheDocument();
+  });
+});
