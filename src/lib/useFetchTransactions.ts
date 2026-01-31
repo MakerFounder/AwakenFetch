@@ -33,7 +33,11 @@ export interface FetchState {
 
 export interface UseFetchTransactionsReturn extends FetchState {
   /** Start fetching transactions for the given address and chain. */
-  fetchTransactions: (address: string, chainId: string) => Promise<void>;
+  fetchTransactions: (
+    address: string,
+    chainId: string,
+    dateRange?: { fromDate: string; toDate: string },
+  ) => Promise<void>;
   /** Retry the last failed fetch. */
   retry: () => Promise<void>;
   /** Reset the state back to idle. */
@@ -90,20 +94,26 @@ const initialState: FetchState = {
 
 export function useFetchTransactions(): UseFetchTransactionsReturn {
   const [state, setState] = useState<FetchState>(initialState);
-  const lastParamsRef = useRef<{ address: string; chainId: string } | null>(
-    null,
-  );
+  const lastParamsRef = useRef<{
+    address: string;
+    chainId: string;
+    dateRange?: { fromDate: string; toDate: string };
+  } | null>(null);
   /** Abort controller for cancelling in-flight requests. */
   const abortRef = useRef<AbortController | null>(null);
 
   const fetchTransactions = useCallback(
-    async (address: string, chainId: string) => {
+    async (
+      address: string,
+      chainId: string,
+      dateRange?: { fromDate: string; toDate: string },
+    ) => {
       // Cancel any in-flight request
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
 
-      lastParamsRef.current = { address, chainId };
+      lastParamsRef.current = { address, chainId, dateRange };
 
       setState((prev) => ({
         ...prev,
@@ -115,7 +125,7 @@ export function useFetchTransactions(): UseFetchTransactionsReturn {
         retryCount: 0,
       }));
 
-      await executeFetch(address, chainId, 0, controller.signal);
+      await executeFetch(address, chainId, dateRange, 0, controller.signal);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
@@ -125,11 +135,21 @@ export function useFetchTransactions(): UseFetchTransactionsReturn {
     async (
       address: string,
       chainId: string,
+      dateRange: { fromDate: string; toDate: string } | undefined,
       attempt: number,
       signal: AbortSignal,
     ) => {
       try {
         const params = new URLSearchParams({ address });
+        if (dateRange?.fromDate) {
+          params.set("fromDate", new Date(dateRange.fromDate).toISOString());
+        }
+        if (dateRange?.toDate) {
+          // Set toDate to end of day (23:59:59.999 UTC)
+          const endOfDay = new Date(dateRange.toDate);
+          endOfDay.setUTCHours(23, 59, 59, 999);
+          params.set("toDate", endOfDay.toISOString());
+        }
         const res = await fetch(`/api/proxy/${chainId}?${params.toString()}`, {
           signal,
         });
@@ -155,7 +175,7 @@ export function useFetchTransactions(): UseFetchTransactionsReturn {
             }));
             await sleep(delay);
             if (!signal.aborted) {
-              await executeFetch(address, chainId, attempt + 1, signal);
+              await executeFetch(address, chainId, dateRange, attempt + 1, signal);
             }
             return;
           }
@@ -204,7 +224,7 @@ export function useFetchTransactions(): UseFetchTransactionsReturn {
           }));
           await sleep(delay);
           if (!signal.aborted) {
-            await executeFetch(address, chainId, attempt + 1, signal);
+            await executeFetch(address, chainId, dateRange, attempt + 1, signal);
           }
           return;
         }
@@ -241,6 +261,7 @@ export function useFetchTransactions(): UseFetchTransactionsReturn {
     await executeFetch(
       params.address,
       params.chainId,
+      params.dateRange,
       nextAttempt,
       controller.signal,
     );

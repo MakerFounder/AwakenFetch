@@ -9,6 +9,11 @@ import {
 import { ChainHelpModal } from "@/components/ChainHelpModal";
 import { FetchStatus } from "@/components/FetchStatus";
 import { useFetchTransactions } from "@/lib/useFetchTransactions";
+import {
+  DateRangeFilter,
+  getPreviousYearRange,
+  type DateRange,
+} from "@/components/DateRangeFilter";
 
 export interface WalletFormProps {
   /** Available chains to display in the selector. */
@@ -28,6 +33,7 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched }: WalletFo
   const [addressError, setAddressError] = useState<string | undefined>();
   const [touched, setTouched] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange>(getPreviousYearRange);
 
   const fetchState = useFetchTransactions();
 
@@ -96,7 +102,7 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched }: WalletFo
     const valid = runValidation(address, selectedChainId);
     if (!valid) return;
     onSubmit?.(address.trim(), selectedChainId);
-    fetchState.fetchTransactions(address.trim(), selectedChainId);
+    fetchState.fetchTransactions(address.trim(), selectedChainId, dateRange);
   }
 
   const placeholder = getAddressPlaceholder(selectedChainId);
@@ -197,6 +203,13 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched }: WalletFo
           </p>
         )}
       </div>
+
+      {/* Date range filter */}
+      <DateRangeFilter
+        value={dateRange}
+        onChange={setDateRange}
+        disabled={isLoading}
+      />
 
       {/* Submit button */}
       <button
