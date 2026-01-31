@@ -9,6 +9,7 @@ import type { ChainAdapter, ChainInfo } from "@/types";
 import { ChainAdapterRegistry } from "./registry";
 import { bittensorAdapter } from "./bittensor";
 import { kaspaAdapter } from "./kaspa";
+import { injectiveAdapter } from "./injective";
 
 export { ChainAdapterRegistry } from "./registry";
 
@@ -18,6 +19,7 @@ export const registry = new ChainAdapterRegistry();
 // Register built-in adapters
 registry.register(bittensorAdapter);
 registry.register(kaspaAdapter);
+registry.register(injectiveAdapter);
 
 /** Register a chain adapter on the default registry. */
 export function registerAdapter(adapter: ChainAdapter): void {
