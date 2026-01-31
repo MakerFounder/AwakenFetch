@@ -26,7 +26,7 @@ describe("Home Page", () => {
     const { container } = render(<Home />);
     expect(within(container).getByLabelText(/chain/i)).toBeInTheDocument();
     expect(
-      within(container).getByLabelText(/wallet address/i),
+      within(container).getByLabelText("Wallet Address"),
     ).toBeInTheDocument();
     expect(
       within(container).getByRole("button", { name: /fetch transactions/i }),
@@ -35,8 +35,9 @@ describe("Home Page", () => {
 
   it("shows all registered chain adapters in the dropdown", () => {
     const { container } = render(<Home />);
-    expect(within(container).getByText(/Bittensor/)).toBeInTheDocument();
-    expect(within(container).getByText(/Kaspa/)).toBeInTheDocument();
-    expect(within(container).getByText(/Injective/)).toBeInTheDocument();
+    const select = within(container).getByLabelText(/chain/i);
+    expect(within(select).getByText(/Bittensor/)).toBeInTheDocument();
+    expect(within(select).getByText(/Kaspa/)).toBeInTheDocument();
+    expect(within(select).getByText(/Injective/)).toBeInTheDocument();
   });
 });

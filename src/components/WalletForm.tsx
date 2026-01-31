@@ -6,6 +6,7 @@ import {
   validateAddress,
   getAddressPlaceholder,
 } from "@/lib/validateAddress";
+import { ChainHelpModal } from "@/components/ChainHelpModal";
 
 export interface WalletFormProps {
   /** Available chains to display in the selector. */
@@ -19,6 +20,7 @@ export function WalletForm({ chains, onSubmit }: WalletFormProps) {
   const [selectedChainId, setSelectedChainId] = useState("");
   const [addressError, setAddressError] = useState<string | undefined>();
   const [touched, setTouched] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const enabledChains = useMemo(
     () => chains.filter((c) => c.enabled),
@@ -83,12 +85,43 @@ export function WalletForm({ chains, onSubmit }: WalletFormProps) {
     >
       {/* Chain selector */}
       <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor="chain-select"
-          className="text-sm font-medium text-foreground/80"
-        >
-          Chain
-        </label>
+        <div className="flex items-center gap-1.5">
+          <label
+            htmlFor="chain-select"
+            className="text-sm font-medium text-foreground/80"
+          >
+            Chain
+          </label>
+          <button
+            type="button"
+            onClick={() => setHelpOpen(true)}
+            aria-label="How to find your wallet address"
+            title="How to find your wallet address"
+            className="cursor-pointer rounded-full text-foreground/40 transition-colors hover:text-foreground/70"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+              <text
+                x="8"
+                y="11.5"
+                textAnchor="middle"
+                fill="currentColor"
+                fontSize="10"
+                fontWeight="600"
+                fontFamily="system-ui, sans-serif"
+              >
+                ?
+              </text>
+            </svg>
+          </button>
+        </div>
         <select
           id="chain-select"
           value={selectedChainId}
@@ -148,6 +181,8 @@ export function WalletForm({ chains, onSubmit }: WalletFormProps) {
       >
         Fetch Transactions
       </button>
+
+      <ChainHelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
     </form>
   );
 }
