@@ -20,12 +20,16 @@ export function formatDate(date: Date): string {
  * Format a quantity to at most 8 decimal places, removing trailing zeros.
  * Returns an empty string for undefined/null values.
  * Ensures no negative numbers (takes absolute value).
+ * Avoids scientific notation for very small numbers.
  */
 export function formatQuantity(value: number | undefined): string {
   if (value === undefined || value === null) return "";
   const abs = Math.abs(value);
-  // Use toFixed(8) then strip trailing zeros
-  return parseFloat(abs.toFixed(8)).toString();
+  // Use toFixed(8) to avoid scientific notation, then strip trailing zeros
+  const fixed = abs.toFixed(8);
+  // Remove trailing zeros after the decimal point
+  const trimmed = fixed.replace(/\.?0+$/, "");
+  return trimmed;
 }
 
 /**
