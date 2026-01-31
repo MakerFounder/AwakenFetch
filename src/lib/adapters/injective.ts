@@ -20,6 +20,7 @@
 
 import type { ChainAdapter, FetchOptions, Transaction } from "@/types";
 import { generateStandardCSV } from "@/lib/csv";
+import { fetchWithRetry } from "@/lib/fetchWithRetry";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -34,12 +35,6 @@ const EXPLORER_API_BASE =
 
 /** Maximum results per page from the Explorer API. */
 const PAGE_LIMIT = 100;
-
-/** Maximum retry attempts for rate-limited requests. */
-const MAX_RETRIES = 3;
-
-/** Base delay (ms) for exponential backoff. */
-const BASE_DELAY_MS = 1_000;
 
 /**
  * Injective address regex.
@@ -186,49 +181,12 @@ export function isValidInjectiveAddress(address: string): boolean {
 }
 
 /**
- * Sleep for a given number of milliseconds.
+ * Fetch JSON from Injective API with exponential backoff retry.
  */
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Fetch JSON with exponential backoff retry.
- */
-async function fetchWithRetry<T>(url: string): Promise<T> {
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      const response = await fetch(url, {
-        headers: {
-          accept: "application/json",
-        },
-      });
-
-      if (response.status === 429) {
-        const delay = BASE_DELAY_MS * Math.pow(2, attempt);
-        await sleep(delay);
-        continue;
-      }
-
-      if (!response.ok) {
-        throw new Error(
-          `Injective API error: ${response.status} ${response.statusText}`,
-        );
-      }
-
-      return (await response.json()) as T;
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      if (attempt < MAX_RETRIES - 1) {
-        const delay = BASE_DELAY_MS * Math.pow(2, attempt);
-        await sleep(delay);
-      }
-    }
-  }
-
-  throw lastError ?? new Error("Injective API request failed after retries");
+async function fetchInjectiveWithRetry<T>(url: string): Promise<T> {
+  return fetchWithRetry<T>(url, {
+    errorLabel: "Injective API",
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -675,7 +633,7 @@ async function fetchAllTransactions(
 
   while (true) {
     const url = `${EXPLORER_API_BASE}/accountTxs/${address}?skip=${skip}&limit=${PAGE_LIMIT}`;
-    const data = await fetchWithRetry<ExplorerAccountTxsResponse>(url);
+    const data = await fetchInjectiveWithRetry<ExplorerAccountTxsResponse>(url);
 
     if (!data.data || data.data.length === 0) break;
 

@@ -15,6 +15,7 @@
 
 import type { ChainAdapter, FetchOptions, Transaction } from "@/types";
 import { generateStandardCSV } from "@/lib/csv";
+import { fetchWithRetry } from "@/lib/fetchWithRetry";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -28,12 +29,6 @@ const API_BASE = "https://api.taostats.io/api";
 
 /** Maximum results per page from Taostats. */
 const PAGE_LIMIT = 200;
-
-/** Maximum retry attempts for rate-limited requests. */
-const MAX_RETRIES = 3;
-
-/** Base delay (ms) for exponential backoff. */
-const BASE_DELAY_MS = 1_000;
 
 /**
  * Base58 alphabet used by SS58 (same as Bitcoin Base58Check).
@@ -148,51 +143,13 @@ export function isValidBittensorAddress(address: string): boolean {
 }
 
 /**
- * Sleep for a given number of milliseconds.
- */
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
  * Fetch JSON from Taostats with exponential backoff retry.
  */
-async function fetchWithRetry<T>(url: string, apiKey: string): Promise<T> {
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      const response = await fetch(url, {
-        headers: {
-          accept: "application/json",
-          Authorization: apiKey,
-        },
-      });
-
-      if (response.status === 429) {
-        // Rate limited — back off and retry
-        const delay = BASE_DELAY_MS * Math.pow(2, attempt);
-        await sleep(delay);
-        continue;
-      }
-
-      if (!response.ok) {
-        throw new Error(
-          `Taostats API error: ${response.status} ${response.statusText}`,
-        );
-      }
-
-      return (await response.json()) as T;
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      if (attempt < MAX_RETRIES - 1) {
-        const delay = BASE_DELAY_MS * Math.pow(2, attempt);
-        await sleep(delay);
-      }
-    }
-  }
-
-  throw lastError ?? new Error("Taostats API request failed after retries");
+async function fetchTaostatsWithRetry<T>(url: string, apiKey: string): Promise<T> {
+  return fetchWithRetry<T>(url, {
+    headers: { Authorization: apiKey },
+    errorLabel: "Taostats API",
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -359,7 +316,7 @@ async function fetchTransfers(
 
   while (true) {
     const url = `${API_BASE}/transfer/v1?network=finney&address=${address}&limit=${PAGE_LIMIT}&page=${page}&order=timestamp_asc${timestamps}`;
-    const data = await fetchWithRetry<TaostatsTransferResponse>(url, apiKey);
+    const data = await fetchTaostatsWithRetry<TaostatsTransferResponse>(url, apiKey);
     results.push(...data.data);
 
     if (data.pagination.next_page === null || data.data.length === 0) break;
@@ -392,7 +349,7 @@ async function fetchStakingExtrinsics(
 
     while (true) {
       const url = `${API_BASE}/extrinsic/v1?signer_address=${address}&full_name=${encodeURIComponent(fullName)}&limit=${PAGE_LIMIT}&page=${page}&order=timestamp_asc${timestamps}`;
-      const data = await fetchWithRetry<TaostatsExtrinsicResponse>(url, apiKey);
+      const data = await fetchTaostatsWithRetry<TaostatsExtrinsicResponse>(url, apiKey);
       allExtrinsics.push(...data.data);
 
       if (data.pagination.next_page === null || data.data.length === 0) break;

@@ -17,6 +17,7 @@
 
 import type { ChainAdapter, FetchOptions, Transaction } from "@/types";
 import { generateStandardCSV } from "@/lib/csv";
+import { fetchWithRetry } from "@/lib/fetchWithRetry";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -30,12 +31,6 @@ const API_BASE = "https://api.kaspa.org";
 
 /** Maximum results per page from the API. */
 const PAGE_LIMIT = 500;
-
-/** Maximum retry attempts for rate-limited requests. */
-const MAX_RETRIES = 3;
-
-/** Base delay (ms) for exponential backoff. */
-const BASE_DELAY_MS = 1_000;
 
 /**
  * Kaspa address regex.
@@ -108,50 +103,12 @@ export function isValidKaspaAddress(address: string): boolean {
 }
 
 /**
- * Sleep for a given number of milliseconds.
- */
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
  * Fetch JSON from Kaspa API with exponential backoff retry.
  */
-async function fetchWithRetry<T>(url: string): Promise<T> {
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      const response = await fetch(url, {
-        headers: {
-          accept: "application/json",
-        },
-      });
-
-      if (response.status === 429) {
-        // Rate limited — back off and retry
-        const delay = BASE_DELAY_MS * Math.pow(2, attempt);
-        await sleep(delay);
-        continue;
-      }
-
-      if (!response.ok) {
-        throw new Error(
-          `Kaspa API error: ${response.status} ${response.statusText}`,
-        );
-      }
-
-      return (await response.json()) as T;
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      if (attempt < MAX_RETRIES - 1) {
-        const delay = BASE_DELAY_MS * Math.pow(2, attempt);
-        await sleep(delay);
-      }
-    }
-  }
-
-  throw lastError ?? new Error("Kaspa API request failed after retries");
+async function fetchKaspaWithRetry<T>(url: string): Promise<T> {
+  return fetchWithRetry<T>(url, {
+    errorLabel: "Kaspa API",
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -334,7 +291,7 @@ async function fetchAllTransactions(
 
   while (true) {
     const url = `${API_BASE}/addresses/${address}/full-transactions?limit=${PAGE_LIMIT}&offset=${offset}&resolve_previous_outpoints=light`;
-    const data = await fetchWithRetry<KaspaTransaction[]>(url);
+    const data = await fetchKaspaWithRetry<KaspaTransaction[]>(url);
 
     if (!Array.isArray(data) || data.length === 0) break;
 
