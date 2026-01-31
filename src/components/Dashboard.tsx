@@ -16,6 +16,7 @@ import {
   getAvailableTypes,
   filterByType,
 } from "@/components/TransactionTypeFilter";
+import { DownloadCSVButton } from "@/components/DownloadCSVButton";
 
 export interface DashboardProps {
   /** Available chains to display in the selector. */
@@ -25,6 +26,7 @@ export interface DashboardProps {
 export function Dashboard({ chains }: DashboardProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [activeChainId, setActiveChainId] = useState<string>("");
+  const [activeAddress, setActiveAddress] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<TransactionType | "" | "needs_review">("");
   const [isFetching, setIsFetching] = useState(false);
 
@@ -36,6 +38,13 @@ export function Dashboard({ chains }: DashboardProps) {
     setActiveChainId(chainId);
     setTypeFilter("");
   };
+
+  const handleFormSubmit = useCallback(
+    (address: string) => {
+      setActiveAddress(address);
+    },
+    [],
+  );
 
   const availableTypes = useMemo(
     () => getAvailableTypes(transactions),
@@ -80,6 +89,7 @@ export function Dashboard({ chains }: DashboardProps) {
         </div>
         <WalletForm
           chains={chains}
+          onSubmit={handleFormSubmit}
           onTransactionsFetched={handleTransactionsFetched}
           onLoadingChange={handleLoadingChange}
         />
@@ -93,11 +103,16 @@ export function Dashboard({ chains }: DashboardProps) {
 
       {!isFetching && transactions.length > 0 && activeChainId && (
         <div className="w-full max-w-6xl">
-          <div className="mb-4">
+          <div className="mb-4 flex items-center justify-between gap-4">
             <TransactionTypeFilter
               value={typeFilter}
               onChange={setTypeFilter}
               availableTypes={availableTypes}
+            />
+            <DownloadCSVButton
+              transactions={filteredTransactions}
+              chainId={activeChainId}
+              address={activeAddress}
             />
           </div>
           <TransactionTable
