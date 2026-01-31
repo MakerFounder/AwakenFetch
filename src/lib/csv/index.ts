@@ -11,6 +11,7 @@
 export { generateStandardCSV } from "./standard";
 export { generatePerpCSV } from "./perp";
 export { formatDate, formatQuantity } from "./utils";
+export { buildCSVFilename, downloadCSV } from "./download";
 export {
   STANDARD_CSV_COLUMNS,
   STANDARD_CSV_HEADER,
