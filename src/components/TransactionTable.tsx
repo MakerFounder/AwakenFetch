@@ -6,7 +6,7 @@
  */
 
 import { useState, useMemo, useCallback } from "react";
-import type { Transaction, TransactionType } from "@/types";
+import type { Transaction } from "@/types";
 import { getExplorerUrl } from "@/lib/explorerUrls";
 
 // ---------------------------------------------------------------------------
@@ -44,20 +44,6 @@ interface SortConfig {
 // ---------------------------------------------------------------------------
 
 const ROWS_PER_PAGE = 50;
-
-const ALL_TYPES: TransactionType[] = [
-  "send",
-  "receive",
-  "trade",
-  "lp_add",
-  "lp_remove",
-  "stake",
-  "unstake",
-  "claim",
-  "bridge",
-  "approval",
-  "other",
-];
 
 const COLUMN_DEFS: { field: SortField; label: string }[] = [
   { field: "date", label: "Date (UTC)" },
@@ -145,8 +131,7 @@ export function TransactionTable({
   // Pagination state
   const [currentPage, setCurrentPage] = useState(0);
 
-  // Filter state
-  const [typeFilter, setTypeFilter] = useState<TransactionType | "">("");
+  // Filter state — type filtering moved to Dashboard-level TransactionTypeFilter
   const [searchQuery, setSearchQuery] = useState("");
 
   // Toggle sort direction or switch to new field
@@ -162,20 +147,9 @@ export function TransactionTable({
     [],
   );
 
-  // Available types in the current dataset
-  const availableTypes = useMemo(() => {
-    const types = new Set(transactions.map((tx) => tx.type));
-    return ALL_TYPES.filter((t) => types.has(t));
-  }, [transactions]);
-
   // Filter → Sort → Paginate
   const filteredTransactions = useMemo(() => {
     let result = transactions;
-
-    // Type filter
-    if (typeFilter) {
-      result = result.filter((tx) => tx.type === typeFilter);
-    }
 
     // Search filter (searches across currency, hash, notes)
     if (searchQuery.trim()) {
@@ -192,7 +166,7 @@ export function TransactionTable({
     }
 
     return result;
-  }, [transactions, typeFilter, searchQuery]);
+  }, [transactions, searchQuery]);
 
   const sortedTransactions = useMemo(() => {
     const sorted = [...filteredTransactions].sort((a, b) => {
@@ -233,32 +207,6 @@ export function TransactionTable({
     <div className="flex w-full flex-col gap-4">
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        {/* Type filter */}
-        <div className="flex items-center gap-2">
-          <label
-            htmlFor="type-filter"
-            className="text-xs font-medium text-foreground/60"
-          >
-            Type
-          </label>
-          <select
-            id="type-filter"
-            value={typeFilter}
-            onChange={(e) => {
-              setTypeFilter(e.target.value as TransactionType | "");
-              setCurrentPage(0);
-            }}
-            className="cursor-pointer rounded-md border border-foreground/20 bg-background px-2 py-1.5 text-xs text-foreground transition-colors hover:border-foreground/40 focus:border-foreground/60 focus:outline-none"
-          >
-            <option value="">All types</option>
-            {availableTypes.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </div>
-
         {/* Search filter */}
         <div className="flex items-center gap-2">
           <label

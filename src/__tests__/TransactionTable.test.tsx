@@ -272,17 +272,14 @@ describe("TransactionTable — sorting", () => {
 // ---------------------------------------------------------------------------
 
 describe("TransactionTable — filtering", () => {
-  it("filters by transaction type", async () => {
-    const user = userEvent.setup();
+  it("displays only pre-filtered transactions passed as props", () => {
+    // Type filtering is now done at Dashboard level via TransactionTypeFilter.
+    // TransactionTable receives already-filtered transactions as props.
+    const stakeTxs = sampleTransactions.filter((tx) => tx.type === "stake");
     render(
-      <TransactionTable transactions={sampleTransactions} chainId="bittensor" />,
+      <TransactionTable transactions={stakeTxs} chainId="bittensor" />,
     );
 
-    const typeSelect = screen.getByLabelText("Type");
-    await user.selectOptions(typeSelect, "stake");
-
-    // Should show only 1 stake transaction
-    expect(screen.getByText(/1 of 4/)).toBeInTheDocument();
     const table = screen.getByRole("table");
     const dataRows = within(table).getAllByRole("row").slice(1);
     expect(dataRows).toHaveLength(1);
@@ -317,13 +314,15 @@ describe("TransactionTable — filtering", () => {
     expect(screen.getByText(/0 of 4/)).toBeInTheDocument();
   });
 
-  it("resets to page 1 when filter changes", async () => {
+  it("resets to page 1 when search filter changes", async () => {
     // Create enough transactions to have multiple pages
     const manyTxs = Array.from({ length: 120 }, (_, i) =>
       makeTx({
         date: new Date(`2025-01-${String(1 + (i % 28)).padStart(2, "0")}T00:00:00Z`),
         txHash: `0xhash_reset_${i}`,
         type: i < 60 ? "send" : "receive",
+        sentCurrency: i < 60 ? "ALPHA" : "BETA",
+        feeCurrency: i < 60 ? "ALPHA" : "BETA",
       }),
     );
 
@@ -337,9 +336,9 @@ describe("TransactionTable — filtering", () => {
     await user.click(nextBtn);
     expect(screen.getByText("Page 2 of 3")).toBeInTheDocument();
 
-    // Apply filter — should reset to page 1 (60 send txs = 2 pages)
-    const typeSelect = screen.getByLabelText("Type");
-    await user.selectOptions(typeSelect, "send");
+    // Apply search filter — should reset to page 1 (60 ALPHA txs = 2 pages)
+    const searchInput = screen.getByLabelText("Search");
+    await user.type(searchInput, "ALPHA");
     expect(screen.getByText(/Page 1 of 2/)).toBeInTheDocument();
   });
 });

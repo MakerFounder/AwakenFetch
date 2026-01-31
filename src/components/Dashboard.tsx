@@ -6,10 +6,15 @@
  * the transaction data and chain context.
  */
 
-import { useState } from "react";
-import type { ChainInfo, Transaction } from "@/types";
+import { useState, useMemo } from "react";
+import type { ChainInfo, Transaction, TransactionType } from "@/types";
 import { WalletForm } from "@/components/WalletForm";
 import { TransactionTable } from "@/components/TransactionTable";
+import {
+  TransactionTypeFilter,
+  getAvailableTypes,
+  filterByType,
+} from "@/components/TransactionTypeFilter";
 
 export interface DashboardProps {
   /** Available chains to display in the selector. */
@@ -19,6 +24,7 @@ export interface DashboardProps {
 export function Dashboard({ chains }: DashboardProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [activeChainId, setActiveChainId] = useState<string>("");
+  const [typeFilter, setTypeFilter] = useState<TransactionType | "">("");
 
   const handleTransactionsFetched = (
     txs: Transaction[],
@@ -26,7 +32,18 @@ export function Dashboard({ chains }: DashboardProps) {
   ) => {
     setTransactions(txs);
     setActiveChainId(chainId);
+    setTypeFilter("");
   };
+
+  const availableTypes = useMemo(
+    () => getAvailableTypes(transactions),
+    [transactions],
+  );
+
+  const filteredTransactions = useMemo(
+    () => filterByType(transactions, typeFilter),
+    [transactions, typeFilter],
+  );
 
   return (
     <div className="flex w-full flex-col items-center gap-8">
@@ -45,8 +62,15 @@ export function Dashboard({ chains }: DashboardProps) {
 
       {transactions.length > 0 && activeChainId && (
         <div className="w-full max-w-6xl">
+          <div className="mb-4">
+            <TransactionTypeFilter
+              value={typeFilter}
+              onChange={setTypeFilter}
+              availableTypes={availableTypes}
+            />
+          </div>
           <TransactionTable
-            transactions={transactions}
+            transactions={filteredTransactions}
             chainId={activeChainId}
           />
         </div>
