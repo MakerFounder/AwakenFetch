@@ -7,11 +7,15 @@
 
 import type { ChainAdapter, ChainInfo } from "@/types";
 import { ChainAdapterRegistry } from "./registry";
+import { bittensorAdapter } from "./bittensor";
 
 export { ChainAdapterRegistry } from "./registry";
 
 /** Default (global) registry instance used by convenience helpers. */
 export const registry = new ChainAdapterRegistry();
+
+// Register built-in adapters
+registry.register(bittensorAdapter);
 
 /** Register a chain adapter on the default registry. */
 export function registerAdapter(adapter: ChainAdapter): void {
