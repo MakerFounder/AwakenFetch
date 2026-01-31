@@ -17,6 +17,7 @@ import {
   filterByType,
 } from "@/components/TransactionTypeFilter";
 import { DownloadCSVButton } from "@/components/DownloadCSVButton";
+import { DownloadPerpsCSVButton } from "@/components/DownloadPerpsCSVButton";
 
 export interface DashboardProps {
   /** Available chains to display in the selector. */
@@ -78,6 +79,12 @@ export function Dashboard({ chains }: DashboardProps) {
     setIsFetching(isLoading);
   }, []);
 
+  const isPerpsCapable = useMemo(() => {
+    if (!activeChainId) return false;
+    const chain = chains.find((c) => c.chainId === activeChainId);
+    return chain?.perpsCapable ?? false;
+  }, [activeChainId, chains]);
+
   return (
     <div className="flex w-full flex-col items-center gap-8">
       <div className="flex w-full max-w-xl flex-col items-center gap-8">
@@ -109,11 +116,20 @@ export function Dashboard({ chains }: DashboardProps) {
               onChange={setTypeFilter}
               availableTypes={availableTypes}
             />
-            <DownloadCSVButton
-              transactions={filteredTransactions}
-              chainId={activeChainId}
-              address={activeAddress}
-            />
+            <div className="flex items-center gap-2">
+              {isPerpsCapable && (
+                <DownloadPerpsCSVButton
+                  perpTransactions={[]}
+                  chainId={activeChainId}
+                  address={activeAddress}
+                />
+              )}
+              <DownloadCSVButton
+                transactions={filteredTransactions}
+                chainId={activeChainId}
+                address={activeAddress}
+              />
+            </div>
           </div>
           <TransactionTable
             transactions={filteredTransactions}

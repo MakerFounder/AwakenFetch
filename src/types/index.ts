@@ -75,6 +75,8 @@ export interface ChainAdapter {
   chainId: string;
   /** Human-readable chain name. */
   chainName: string;
+  /** Whether this chain/protocol supports perpetuals trading. */
+  perpsCapable?: boolean;
   /** Fetch transactions for the given wallet address. */
   fetchTransactions(
     address: string,
@@ -95,4 +97,6 @@ export interface ChainInfo {
   ticker: string;
   /** Whether the adapter is currently operational. */
   enabled: boolean;
+  /** Whether this chain/protocol supports perpetuals trading. */
+  perpsCapable: boolean;
 }

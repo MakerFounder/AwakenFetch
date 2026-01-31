@@ -667,6 +667,7 @@ async function fetchAllTransactions(
 export const injectiveAdapter: ChainAdapter = {
   chainId: "injective",
   chainName: "Injective",
+  perpsCapable: true,
 
   async fetchTransactions(
     address: string,

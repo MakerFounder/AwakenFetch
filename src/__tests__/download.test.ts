@@ -70,6 +70,35 @@ describe("buildCSVFilename", () => {
     );
     expect(result).toBe("awakenfetch_chain_walletad_20250105.csv");
   });
+
+  it("appends _perps suffix when variant is 'perps'", () => {
+    const result = buildCSVFilename(
+      "injective",
+      "inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz",
+      new Date("2024-04-01T00:00:00Z"),
+      "perps",
+    );
+    expect(result).toBe("awakenfetch_injective_inj1qy09_20240401_perps.csv");
+  });
+
+  it("does not append suffix when variant is 'standard'", () => {
+    const result = buildCSVFilename(
+      "bittensor",
+      "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+      new Date("2025-03-15T12:00:00Z"),
+      "standard",
+    );
+    expect(result).toBe("awakenfetch_bittensor_5FHneW46_20250315.csv");
+  });
+
+  it("defaults to standard variant when not specified", () => {
+    const result = buildCSVFilename(
+      "kaspa",
+      "kaspa:abc123defg",
+      new Date("2025-01-01T00:00:00Z"),
+    );
+    expect(result).not.toContain("_perps");
+  });
 });
 
 // ---------------------------------------------------------------------------

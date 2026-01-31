@@ -48,6 +48,7 @@ export class ChainAdapterRegistry {
       chainName: a.chainName,
       ticker: a.chainId.toUpperCase(),
       enabled: true,
+      perpsCapable: a.perpsCapable ?? false,
     }));
   }
 

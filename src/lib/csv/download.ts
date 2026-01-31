@@ -16,12 +16,14 @@
  * @param chain     - Chain identifier (e.g. "bittensor", "kaspa")
  * @param address   - Full wallet address
  * @param timestamp - Optional Date for the filename (defaults to now)
+ * @param variant   - Optional CSV variant ("standard" or "perps", defaults to "standard")
  * @returns Formatted filename string
  */
 export function buildCSVFilename(
   chain: string,
   address: string,
   timestamp?: Date,
+  variant: "standard" | "perps" = "standard",
 ): string {
   const d = timestamp ?? new Date();
   const yyyy = d.getUTCFullYear();
@@ -32,7 +34,8 @@ export function buildCSVFilename(
   const chainLower = chain.toLowerCase();
   const addressShort = address.slice(0, 8);
 
-  return `awakenfetch_${chainLower}_${addressShort}_${dateStr}.csv`;
+  const suffix = variant === "perps" ? "_perps" : "";
+  return `awakenfetch_${chainLower}_${addressShort}_${dateStr}${suffix}.csv`;
 }
 
 /**
