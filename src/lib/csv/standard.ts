@@ -9,9 +9,7 @@
 
 import type { Transaction } from "@/types";
 import { formatDate, formatQuantity, escapeCSVField } from "./utils";
-
-const HEADER =
-  "Date,Received Quantity,Received Currency,Received Fiat Amount,Sent Quantity,Sent Currency,Sent Fiat Amount,Fee Amount,Fee Currency,Transaction Hash,Notes,Tag";
+import { STANDARD_CSV_HEADER } from "./constants";
 
 function transactionToRow(tx: Transaction): string {
   const fields: string[] = [
@@ -36,5 +34,5 @@ function transactionToRow(tx: Transaction): string {
  */
 export function generateStandardCSV(txs: Transaction[]): string {
   const rows = txs.map(transactionToRow);
-  return [HEADER, ...rows].join("\n");
+  return [STANDARD_CSV_HEADER, ...rows].join("\n");
 }

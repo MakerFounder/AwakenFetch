@@ -7,9 +7,7 @@
 
 import type { PerpTransaction } from "@/types";
 import { formatDate, formatQuantity, escapeCSVField } from "./utils";
-
-const HEADER =
-  "Date,Asset,Amount,Fee,P&L,Payment Token,Notes,Transaction Hash,Tag";
+import { PERP_CSV_HEADER } from "./constants";
 
 /**
  * Format P&L — this is the one field that may be negative per Awaken spec.
@@ -38,5 +36,5 @@ function perpToRow(tx: PerpTransaction): string {
  */
 export function generatePerpCSV(txs: PerpTransaction[]): string {
   const rows = txs.map(perpToRow);
-  return [HEADER, ...rows].join("\n");
+  return [PERP_CSV_HEADER, ...rows].join("\n");
 }
