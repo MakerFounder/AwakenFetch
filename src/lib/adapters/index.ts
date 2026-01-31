@@ -15,6 +15,7 @@ import { hederaAdapter } from "./hedera";
 import { radixAdapter } from "./radix";
 import { ergoAdapter } from "./ergo";
 import { polkadotAdapter } from "./polkadot";
+import { osmosisAdapter } from "./osmosis";
 
 export { ChainAdapterRegistry } from "./registry";
 
@@ -30,6 +31,7 @@ registry.register(hederaAdapter);
 registry.register(radixAdapter);
 registry.register(ergoAdapter);
 registry.register(polkadotAdapter);
+registry.register(osmosisAdapter);
 
 /** Register a chain adapter on the default registry. */
 export function registerAdapter(adapter: ChainAdapter): void {
