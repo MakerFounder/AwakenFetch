@@ -47,6 +47,7 @@ describe("filterByType", () => {
     { type: "receive" as TransactionType, id: 2 },
     { type: "trade" as TransactionType, id: 3 },
     { type: "send" as TransactionType, id: 4 },
+    { type: "other" as TransactionType, id: 5 },
   ];
 
   it("returns all transactions when filter is empty string", () => {
@@ -65,6 +66,18 @@ describe("filterByType", () => {
 
   it("handles empty transaction array", () => {
     expect(filterByType([], "send")).toEqual([]);
+  });
+
+  it('filters to "other" type when needs_review is selected', () => {
+    const result = filterByType(txs, "needs_review");
+    expect(result).toHaveLength(1);
+    expect(result[0].type).toBe("other");
+    expect(result[0].id).toBe(5);
+  });
+
+  it("returns empty array for needs_review when no other types exist", () => {
+    const noOther = txs.filter((tx) => tx.type !== "other");
+    expect(filterByType(noOther, "needs_review")).toEqual([]);
   });
 });
 
@@ -169,5 +182,63 @@ describe("TransactionTypeFilter", () => {
     expect(screen.getByText("Bridge")).toBeInTheDocument();
     expect(screen.getByText("Approval")).toBeInTheDocument();
     expect(screen.getByText("Other")).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Needs Review filter option
+// ---------------------------------------------------------------------------
+
+describe("TransactionTypeFilter — Needs Review", () => {
+  it('shows "Needs Review" option when "other" type is available', () => {
+    render(
+      <TransactionTypeFilter
+        value=""
+        onChange={vi.fn()}
+        availableTypes={["send", "other"]}
+      />,
+    );
+    expect(screen.getByText("⚠ Needs Review")).toBeInTheDocument();
+  });
+
+  it('does NOT show "Needs Review" option when "other" type is not available', () => {
+    render(
+      <TransactionTypeFilter
+        value=""
+        onChange={vi.fn()}
+        availableTypes={["send", "receive"]}
+      />,
+    );
+    expect(screen.queryByText("⚠ Needs Review")).not.toBeInTheDocument();
+  });
+
+  it('calls onChange with "needs_review" when Needs Review is selected', async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <TransactionTypeFilter
+        value=""
+        onChange={onChange}
+        availableTypes={["send", "other"]}
+      />,
+    );
+
+    const select = screen.getByLabelText("Filter by transaction type");
+    await user.selectOptions(select, "needs_review");
+
+    expect(onChange).toHaveBeenCalledWith("needs_review");
+  });
+
+  it('displays "Needs Review" as selected when value is "needs_review"', () => {
+    render(
+      <TransactionTypeFilter
+        value="needs_review"
+        onChange={vi.fn()}
+        availableTypes={["send", "other"]}
+      />,
+    );
+
+    const select = screen.getByLabelText("Filter by transaction type") as HTMLSelectElement;
+    expect(select.value).toBe("needs_review");
   });
 });

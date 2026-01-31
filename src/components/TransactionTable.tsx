@@ -3,10 +3,12 @@
 /**
  * TransactionTable — sortable, filterable, paginated table for displaying
  * fetched transactions with explorer-linked tx hashes.
+ * Highlights ambiguous (type = "other") rows with a yellow background
+ * and provides an editable type dropdown for reclassification.
  */
 
 import { useState, useMemo, useCallback } from "react";
-import type { Transaction } from "@/types";
+import type { Transaction, TransactionType } from "@/types";
 import { getExplorerUrl } from "@/lib/explorerUrls";
 
 // ---------------------------------------------------------------------------
@@ -18,6 +20,8 @@ export interface TransactionTableProps {
   transactions: Transaction[];
   /** Current chain ID (used to build explorer URLs). */
   chainId: string;
+  /** Callback when user reclassifies an "other" transaction's type. */
+  onTypeChange?: (txHash: string, txIndex: number, newType: TransactionType) => void;
 }
 
 type SortField =
@@ -56,6 +60,21 @@ const COLUMN_DEFS: { field: SortField; label: string }[] = [
   { field: "feeCurrency", label: "Fee Currency" },
   { field: "txHash", label: "Tx Hash" },
   { field: "notes", label: "Notes" },
+];
+
+/** All reclassification options for the editable type dropdown. */
+const RECLASSIFY_TYPES: { value: TransactionType; label: string }[] = [
+  { value: "send", label: "Send" },
+  { value: "receive", label: "Receive" },
+  { value: "trade", label: "Trade" },
+  { value: "lp_add", label: "LP Add" },
+  { value: "lp_remove", label: "LP Remove" },
+  { value: "stake", label: "Stake" },
+  { value: "unstake", label: "Unstake" },
+  { value: "claim", label: "Claim" },
+  { value: "bridge", label: "Bridge" },
+  { value: "approval", label: "Approval" },
+  { value: "other", label: "Other" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -121,6 +140,7 @@ function getSortValue(
 export function TransactionTable({
   transactions,
   chainId,
+  onTypeChange,
 }: TransactionTableProps) {
   // Sorting state
   const [sort, setSort] = useState<SortConfig>({
@@ -280,18 +300,47 @@ export function TransactionTable({
                   ? getExplorerUrl(chainId, tx.txHash)
                   : undefined;
 
+                const isAmbiguous = tx.type === "other";
+                const globalIndex = currentPage * ROWS_PER_PAGE + idx;
+
                 return (
                   <tr
                     key={tx.txHash ? `${tx.txHash}-${idx}` : idx}
-                    className="border-b border-foreground/5 transition-colors hover:bg-foreground/[0.02]"
+                    className={`border-b border-foreground/5 transition-colors ${
+                      isAmbiguous
+                        ? "bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/30"
+                        : "hover:bg-foreground/[0.02]"
+                    }`}
+                    data-needs-review={isAmbiguous || undefined}
                   >
                     <td className="whitespace-nowrap px-3 py-2 text-xs font-mono">
                       {formatDateUTC(tx.date)}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-xs">
-                      <span className="inline-block rounded-full bg-foreground/[0.06] px-2 py-0.5 text-[11px] font-medium">
-                        {tx.type}
-                      </span>
+                      {isAmbiguous && onTypeChange ? (
+                        <select
+                          value={tx.type}
+                          onChange={(e) =>
+                            onTypeChange(
+                              tx.txHash ?? "",
+                              globalIndex,
+                              e.target.value as TransactionType,
+                            )
+                          }
+                          aria-label={`Reclassify transaction type for row ${globalIndex + 1}`}
+                          className="cursor-pointer rounded-md border border-yellow-400 bg-yellow-50 px-1.5 py-0.5 text-[11px] font-medium text-yellow-800 transition-colors hover:border-yellow-500 focus:border-yellow-600 focus:outline-none dark:border-yellow-600 dark:bg-yellow-900/40 dark:text-yellow-200 dark:hover:border-yellow-500"
+                        >
+                          {RECLASSIFY_TYPES.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="inline-block rounded-full bg-foreground/[0.06] px-2 py-0.5 text-[11px] font-medium">
+                          {tx.type}
+                        </span>
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-xs font-mono text-right">
                       {formatQuantity(tx.sentQuantity)}

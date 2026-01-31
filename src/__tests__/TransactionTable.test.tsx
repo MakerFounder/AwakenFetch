@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, within, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TransactionTable } from "@/components/TransactionTable";
@@ -457,5 +457,168 @@ describe("TransactionTable — explorerUrls", () => {
       />,
     );
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Ambiguous transaction highlighting & reclassification
+// ---------------------------------------------------------------------------
+
+describe("TransactionTable — ambiguous transactions", () => {
+  const txsWithOther: Transaction[] = [
+    makeTx({
+      date: new Date("2025-01-10T08:00:00Z"),
+      type: "send",
+      txHash: "0xhash_send_1",
+    }),
+    makeTx({
+      date: new Date("2025-02-15T12:30:00Z"),
+      type: "other",
+      txHash: "0xhash_other_1",
+      notes: "Unknown interaction",
+    }),
+    makeTx({
+      date: new Date("2025-03-20T18:45:00Z"),
+      type: "other",
+      txHash: "0xhash_other_2",
+      notes: "Another unknown",
+    }),
+    makeTx({
+      date: new Date("2025-04-05T06:15:00Z"),
+      type: "receive",
+      txHash: "0xhash_receive_1",
+    }),
+  ];
+
+  it("highlights 'other' type rows with a yellow background", () => {
+    render(
+      <TransactionTable transactions={txsWithOther} chainId="bittensor" />,
+    );
+
+    const rows = screen.getAllByRole("row").slice(1); // skip header
+    // Rows are sorted desc by date, so order: receive(Apr), other(Mar), other(Feb), send(Jan)
+    const otherRows = rows.filter(
+      (row) => row.getAttribute("data-needs-review") === "true",
+    );
+    expect(otherRows).toHaveLength(2);
+
+    // Verify yellow background class is applied
+    otherRows.forEach((row) => {
+      expect(row.className).toContain("bg-yellow-50");
+    });
+
+    // Non-other rows should NOT have the yellow background
+    const normalRows = rows.filter(
+      (row) => !row.hasAttribute("data-needs-review"),
+    );
+    normalRows.forEach((row) => {
+      expect(row.className).not.toContain("bg-yellow-50");
+    });
+  });
+
+  it("renders an editable dropdown for 'other' type rows when onTypeChange is provided", () => {
+    const onTypeChange = vi.fn();
+    render(
+      <TransactionTable
+        transactions={txsWithOther}
+        chainId="bittensor"
+        onTypeChange={onTypeChange}
+      />,
+    );
+
+    // There should be 2 select dropdowns (for the 2 "other" rows)
+    const selects = screen.getAllByRole("combobox");
+    expect(selects).toHaveLength(2);
+
+    // Each select should have "Other" as the current value
+    selects.forEach((select) => {
+      expect((select as HTMLSelectElement).value).toBe("other");
+    });
+  });
+
+  it("does NOT render an editable dropdown for non-'other' rows", () => {
+    const onTypeChange = vi.fn();
+    render(
+      <TransactionTable
+        transactions={[makeTx({ type: "send", txHash: "0xsend_only" })]}
+        chainId="bittensor"
+        onTypeChange={onTypeChange}
+      />,
+    );
+
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(screen.getByText("send")).toBeInTheDocument();
+  });
+
+  it("does NOT render dropdown for 'other' rows when onTypeChange is not provided", () => {
+    render(
+      <TransactionTable transactions={txsWithOther} chainId="bittensor" />,
+    );
+
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    // Type should be shown as plain text badge
+    const otherBadges = screen.getAllByText("other");
+    expect(otherBadges.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("calls onTypeChange with correct arguments when dropdown is changed", async () => {
+    const user = userEvent.setup();
+    const onTypeChange = vi.fn();
+    render(
+      <TransactionTable
+        transactions={txsWithOther}
+        chainId="bittensor"
+        onTypeChange={onTypeChange}
+      />,
+    );
+
+    const selects = screen.getAllByRole("combobox");
+    // Change the first "other" dropdown to "trade"
+    await user.selectOptions(selects[0], "trade");
+
+    expect(onTypeChange).toHaveBeenCalledTimes(1);
+    // The callback receives (txHash, globalIndex, newType)
+    expect(onTypeChange).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(Number),
+      "trade",
+    );
+  });
+
+  it("dropdown contains all transaction type options", () => {
+    const onTypeChange = vi.fn();
+    render(
+      <TransactionTable
+        transactions={[makeTx({ type: "other", txHash: "0xother_opts" })]}
+        chainId="bittensor"
+        onTypeChange={onTypeChange}
+      />,
+    );
+
+    const select = screen.getByRole("combobox");
+    const options = within(select).getAllByRole("option");
+
+    const expectedLabels = [
+      "Send", "Receive", "Trade", "LP Add", "LP Remove",
+      "Stake", "Unstake", "Claim", "Bridge", "Approval", "Other",
+    ];
+    expect(options).toHaveLength(expectedLabels.length);
+    expectedLabels.forEach((label, i) => {
+      expect(options[i]).toHaveTextContent(label);
+    });
+  });
+
+  it("dropdown has accessible label for each row", () => {
+    const onTypeChange = vi.fn();
+    render(
+      <TransactionTable
+        transactions={[makeTx({ type: "other", txHash: "0xother_a11y" })]}
+        chainId="bittensor"
+        onTypeChange={onTypeChange}
+      />,
+    );
+
+    const select = screen.getByRole("combobox");
+    expect(select).toHaveAttribute("aria-label", expect.stringContaining("Reclassify"));
   });
 });

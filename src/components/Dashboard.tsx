@@ -6,7 +6,7 @@
  * the transaction data and chain context.
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import type { ChainInfo, Transaction, TransactionType } from "@/types";
 import { WalletForm } from "@/components/WalletForm";
 import { TransactionTable } from "@/components/TransactionTable";
@@ -24,7 +24,7 @@ export interface DashboardProps {
 export function Dashboard({ chains }: DashboardProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [activeChainId, setActiveChainId] = useState<string>("");
-  const [typeFilter, setTypeFilter] = useState<TransactionType | "">("");
+  const [typeFilter, setTypeFilter] = useState<TransactionType | "" | "needs_review">("");
 
   const handleTransactionsFetched = (
     txs: Transaction[],
@@ -43,6 +43,24 @@ export function Dashboard({ chains }: DashboardProps) {
   const filteredTransactions = useMemo(
     () => filterByType(transactions, typeFilter),
     [transactions, typeFilter],
+  );
+
+  const handleTypeChange = useCallback(
+    (_txHash: string, _txIndex: number, newType: TransactionType) => {
+      // Find the matching transaction in the full (unfiltered) list by reference
+      // since filteredTransactions contains the same object references.
+      const targetTx = filteredTransactions[_txIndex];
+      if (!targetTx) return;
+
+      setTransactions((prev) => {
+        const fullIndex = prev.indexOf(targetTx);
+        if (fullIndex === -1) return prev;
+        const updated = [...prev];
+        updated[fullIndex] = { ...updated[fullIndex], type: newType };
+        return updated;
+      });
+    },
+    [filteredTransactions],
   );
 
   return (
@@ -72,6 +90,7 @@ export function Dashboard({ chains }: DashboardProps) {
           <TransactionTable
             transactions={filteredTransactions}
             chainId={activeChainId}
+            onTypeChange={handleTypeChange}
           />
         </div>
       )}

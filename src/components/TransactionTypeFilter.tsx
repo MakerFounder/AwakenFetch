@@ -3,6 +3,7 @@
 /**
  * TransactionTypeFilter — dropdown filter for selecting a specific
  * transaction type. Displays only types that exist in the current dataset.
+ * Includes a "Needs Review" option to show ambiguous (type = "other") transactions.
  */
 
 import { useMemo } from "react";
@@ -46,10 +47,10 @@ const TYPE_LABELS: Record<TransactionType, string> = {
 // ---------------------------------------------------------------------------
 
 export interface TransactionTypeFilterProps {
-  /** Currently selected type, or empty string for "all". */
-  value: TransactionType | "";
+  /** Currently selected type, or empty string for "all", or "needs_review". */
+  value: TransactionType | "" | "needs_review";
   /** Called when the selected type changes. */
-  onChange: (type: TransactionType | "") => void;
+  onChange: (type: TransactionType | "" | "needs_review") => void;
   /** List of types present in the current dataset. */
   availableTypes: TransactionType[];
   /** Whether the filter is disabled (e.g. during fetch). */
@@ -71,9 +72,12 @@ export function getAvailableTypes(
 /** Filter transactions by type. Returns all if typeFilter is empty. */
 export function filterByType<T extends { type: TransactionType }>(
   transactions: T[],
-  typeFilter: TransactionType | "",
+  typeFilter: TransactionType | "" | "needs_review",
 ): T[] {
   if (!typeFilter) return transactions;
+  if (typeFilter === "needs_review") {
+    return transactions.filter((tx) => tx.type === "other");
+  }
   return transactions.filter((tx) => tx.type === typeFilter);
 }
 
@@ -92,6 +96,8 @@ export function TransactionTypeFilter({
     [availableTypes],
   );
 
+  const hasOtherType = availableTypes.includes("other");
+
   return (
     <div className="flex flex-col gap-1.5">
       <label
@@ -103,12 +109,15 @@ export function TransactionTypeFilter({
       <select
         id="transaction-type-filter"
         value={value}
-        onChange={(e) => onChange(e.target.value as TransactionType | "")}
+        onChange={(e) => onChange(e.target.value as TransactionType | "" | "needs_review")}
         disabled={disabled || sortedTypes.length === 0}
         aria-label="Filter by transaction type"
         className="cursor-pointer rounded-lg border border-foreground/20 bg-background px-3 py-2.5 text-sm text-foreground transition-colors hover:border-foreground/40 focus:border-foreground/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
       >
         <option value="">All types</option>
+        {hasOtherType && (
+          <option value="needs_review">⚠ Needs Review</option>
+        )}
         {sortedTypes.map((t) => (
           <option key={t} value={t}>
             {TYPE_LABELS[t]}
