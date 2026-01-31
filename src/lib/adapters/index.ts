@@ -10,6 +10,7 @@ import { ChainAdapterRegistry } from "./registry";
 import { bittensorAdapter } from "./bittensor";
 import { kaspaAdapter } from "./kaspa";
 import { injectiveAdapter } from "./injective";
+import { multiversxAdapter } from "./multiversx";
 
 export { ChainAdapterRegistry } from "./registry";
 
@@ -20,6 +21,7 @@ export const registry = new ChainAdapterRegistry();
 registry.register(bittensorAdapter);
 registry.register(kaspaAdapter);
 registry.register(injectiveAdapter);
+registry.register(multiversxAdapter);
 
 /** Register a chain adapter on the default registry. */
 export function registerAdapter(adapter: ChainAdapter): void {
