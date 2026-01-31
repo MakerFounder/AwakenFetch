@@ -13,6 +13,7 @@ import { injectiveAdapter } from "./injective";
 import { multiversxAdapter } from "./multiversx";
 import { hederaAdapter } from "./hedera";
 import { radixAdapter } from "./radix";
+import { ergoAdapter } from "./ergo";
 
 export { ChainAdapterRegistry } from "./registry";
 
@@ -26,6 +27,7 @@ registry.register(injectiveAdapter);
 registry.register(multiversxAdapter);
 registry.register(hederaAdapter);
 registry.register(radixAdapter);
+registry.register(ergoAdapter);
 
 /** Register a chain adapter on the default registry. */
 export function registerAdapter(adapter: ChainAdapter): void {
