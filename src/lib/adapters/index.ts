@@ -14,6 +14,7 @@ import { multiversxAdapter } from "./multiversx";
 import { hederaAdapter } from "./hedera";
 import { radixAdapter } from "./radix";
 import { ergoAdapter } from "./ergo";
+import { polkadotAdapter } from "./polkadot";
 
 export { ChainAdapterRegistry } from "./registry";
 
@@ -28,6 +29,7 @@ registry.register(multiversxAdapter);
 registry.register(hederaAdapter);
 registry.register(radixAdapter);
 registry.register(ergoAdapter);
+registry.register(polkadotAdapter);
 
 /** Register a chain adapter on the default registry. */
 export function registerAdapter(adapter: ChainAdapter): void {
