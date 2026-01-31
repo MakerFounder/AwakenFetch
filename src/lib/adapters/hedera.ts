@@ -324,6 +324,16 @@ async function fetchAllTransactions(
 
     results.push(...data.transactions);
 
+    // Report progress for streaming
+    if (options?.onProgress && data.transactions.length > 0) {
+      const batch = data.transactions
+        .map((tx) => mapTransaction(tx, address))
+        .filter((tx): tx is Transaction => tx !== null);
+      if (batch.length > 0) {
+        options.onProgress(batch);
+      }
+    }
+
     // Follow pagination link
     if (data.links?.next) {
       // The next link is a relative path, so prepend the base

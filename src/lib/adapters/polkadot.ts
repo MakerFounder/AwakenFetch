@@ -285,6 +285,8 @@ async function fetchAllTransfers(
       break;
     }
 
+    const batchStart = results.length;
+
     for (const tx of data.data.transfers) {
       if (!tx.success) continue;
 
@@ -336,6 +338,14 @@ async function fetchAllTransfers(
       }
 
       results.push(result);
+    }
+
+    // Report progress for streaming
+    if (options?.onProgress) {
+      const batch = results.slice(batchStart);
+      if (batch.length > 0) {
+        options.onProgress(batch);
+      }
     }
 
     if (data.data.transfers.length < PAGE_SIZE) {

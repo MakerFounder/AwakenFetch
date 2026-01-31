@@ -639,6 +639,16 @@ async function fetchAllTransactions(
 
     results.push(...data.data);
 
+    // Report progress for streaming: map this page's transactions and notify
+    if (options?.onProgress && data.data.length > 0) {
+      const batch = data.data
+        .map((tx) => mapTransaction(tx, address))
+        .filter((tx): tx is Transaction => tx !== null);
+      if (batch.length > 0) {
+        options.onProgress(batch);
+      }
+    }
+
     if (results.length >= data.paging.total || data.data.length < PAGE_LIMIT) {
       break;
     }

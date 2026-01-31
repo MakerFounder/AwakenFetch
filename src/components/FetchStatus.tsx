@@ -5,6 +5,7 @@
  *
  * Shows:
  *   - A spinner + message while loading
+ *   - Streaming progress with live transaction count
  *   - Transaction count on success
  *   - Non-blocking warnings during retries
  *   - Error message with a manual retry button when all retries are exhausted
@@ -52,6 +53,18 @@ export function FetchStatus({
           <Spinner />
           <span className="text-sm text-foreground/70">
             Fetching transactions…
+          </span>
+        </div>
+      )}
+
+      {/* Streaming state — results appearing incrementally */}
+      {status === "streaming" && (
+        <div className="flex items-center gap-3 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3">
+          <Spinner />
+          <span className="text-sm text-blue-700 dark:text-blue-400">
+            Streaming transactions…{" "}
+            <strong>{transactionCount.toLocaleString()}</strong>{" "}
+            fetched so far
           </span>
         </div>
       )}

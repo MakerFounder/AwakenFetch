@@ -42,7 +42,7 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched, onLoadingC
 
   // Notify parent when loading state changes
   useEffect(() => {
-    onLoadingChange?.(fetchState.status === "loading");
+    onLoadingChange?.(fetchState.status === "loading" || fetchState.status === "streaming");
   }, [fetchState.status, onLoadingChange]);
 
   // Notify parent when transactions are fetched successfully
@@ -79,7 +79,7 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched, onLoadingC
     selectedChainId.length > 0 &&
     !addressError;
 
-  const isLoading = fetchState.status === "loading";
+  const isLoading = fetchState.status === "loading" || fetchState.status === "streaming";
 
   function handleAddressChange(e: React.ChangeEvent<HTMLInputElement>) {
     const value = e.target.value;

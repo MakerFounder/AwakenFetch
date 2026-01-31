@@ -319,6 +319,12 @@ async function fetchTransfers(
     const data = await fetchTaostatsWithRetry<TaostatsTransferResponse>(url, apiKey);
     results.push(...data.data);
 
+    // Report progress for streaming: map this page's transfers and notify
+    if (options?.onProgress && data.data.length > 0) {
+      const batch = data.data.map((t) => mapTransfer(t, address));
+      options.onProgress(batch);
+    }
+
     if (data.pagination.next_page === null || data.data.length === 0) break;
     page = data.pagination.next_page;
   }
@@ -351,6 +357,16 @@ async function fetchStakingExtrinsics(
       const url = `${API_BASE}/extrinsic/v1?signer_address=${address}&full_name=${encodeURIComponent(fullName)}&limit=${PAGE_LIMIT}&page=${page}&order=timestamp_asc${timestamps}`;
       const data = await fetchTaostatsWithRetry<TaostatsExtrinsicResponse>(url, apiKey);
       allExtrinsics.push(...data.data);
+
+      // Report progress for streaming: map this page's extrinsics and notify
+      if (options?.onProgress && data.data.length > 0) {
+        const batch = data.data
+          .map(mapExtrinsic)
+          .filter((tx): tx is Transaction => tx !== null);
+        if (batch.length > 0) {
+          options.onProgress(batch);
+        }
+      }
 
       if (data.pagination.next_page === null || data.data.length === 0) break;
       page = data.pagination.next_page;

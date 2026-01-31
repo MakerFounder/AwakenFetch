@@ -459,6 +459,16 @@ async function fetchNativeTransactions(
 
     allTxs.push(...items);
 
+    // Report progress for streaming
+    if (options?.onProgress && items.length > 0) {
+      const batch = items
+        .map((tx) => mapNativeTx(tx, address))
+        .filter((tx): tx is Transaction => tx !== null);
+      if (batch.length > 0) {
+        options.onProgress(batch);
+      }
+    }
+
     cursor = data.result.paging?.nextCursor;
     if (!cursor) break;
   }
@@ -494,6 +504,16 @@ async function fetchTokenTransfers(
     if (!items || items.length === 0) break;
 
     allTransfers.push(...items);
+
+    // Report progress for streaming
+    if (options?.onProgress && items.length > 0) {
+      const batch = items
+        .map((tx) => mapTokenTransfer(tx, address))
+        .filter((tx): tx is Transaction => tx !== null);
+      if (batch.length > 0) {
+        options.onProgress(batch);
+      }
+    }
 
     cursor = data.result.paging?.nextCursor;
     if (!cursor) break;

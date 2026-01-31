@@ -7,7 +7,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-/** Helper to build a mock fetch Response. */
+/** Helper to build a mock fetch Response (non-streaming). */
 function mockFetchResponse(
   body: unknown,
   opts?: { status?: number; ok?: boolean },
@@ -17,7 +17,9 @@ function mockFetchResponse(
   return {
     ok,
     status,
+    headers: new Headers({ "Content-Type": "application/json" }),
     json: () => Promise.resolve(body),
+    body: null,
   } as unknown as Response;
 }
 
@@ -117,12 +119,21 @@ describe("useFetchTransactions", () => {
 
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
+      // 1st call: streaming endpoint → 429 (triggers fallback)
       .mockResolvedValueOnce(
         mockFetchResponse(
           { error: "Rate limited" },
           { status: 429 },
         ),
       )
+      // 2nd call: fallback non-streaming → 429 (triggers retry)
+      .mockResolvedValueOnce(
+        mockFetchResponse(
+          { error: "Rate limited" },
+          { status: 429 },
+        ),
+      )
+      // 3rd call: retry non-streaming → success
       .mockResolvedValueOnce(
         mockFetchResponse({ transactions: mockTxs }),
       );
@@ -143,7 +154,7 @@ describe("useFetchTransactions", () => {
     expect(result.current.transactionCount).toBe(1);
     expect(result.current.warnings.length).toBeGreaterThanOrEqual(1);
     expect(result.current.warnings[0]).toContain("Retry 1/3");
-    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
 
   it("auto-retries on network errors and eventually fails after max retries", async () => {
@@ -182,12 +193,21 @@ describe("useFetchTransactions", () => {
     ];
 
     vi.spyOn(globalThis, "fetch")
+      // 1st call: streaming endpoint → 502 (triggers fallback)
       .mockResolvedValueOnce(
         mockFetchResponse(
           { error: "Bad gateway" },
           { status: 502 },
         ),
       )
+      // 2nd call: fallback non-streaming → 502 (triggers retry)
+      .mockResolvedValueOnce(
+        mockFetchResponse(
+          { error: "Bad gateway" },
+          { status: 502 },
+        ),
+      )
+      // 3rd call: retry non-streaming → success
       .mockResolvedValueOnce(
         mockFetchResponse({ transactions: mockTxs }),
       );
@@ -242,6 +262,7 @@ describe("useFetchTransactions", () => {
       await result.current.fetchTransactions("myaddr123", "kaspa");
     });
 
+    // First call goes to streaming endpoint, still has the address param
     const calledUrl = (fetchSpy.mock.calls[0] as [string])[0];
     expect(calledUrl).toContain("/api/proxy/kaspa");
     expect(calledUrl).toContain("address=myaddr123");

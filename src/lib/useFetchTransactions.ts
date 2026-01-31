@@ -5,6 +5,9 @@
  *
  * Manages the full lifecycle: idle → loading → success/error,
  * with automatic retry on failure (max 3 attempts) and progress tracking.
+ *
+ * For large wallets, uses NDJSON streaming to display results incrementally
+ * as they are fetched from chain adapters.
  */
 
 import { useState, useCallback, useRef } from "react";
@@ -19,7 +22,7 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-export type FetchStatus = "idle" | "loading" | "success" | "error";
+export type FetchStatus = "idle" | "loading" | "streaming" | "success" | "error";
 
 export interface FetchState {
   /** Current status of the fetch operation. */
@@ -78,6 +81,44 @@ function deserialiseTransaction(raw: Record<string, unknown>): Transaction {
     ...raw,
     date: new Date(raw.date as string),
   } as Transaction;
+}
+
+/** NDJSON message types from the streaming endpoint. */
+interface StreamBatchMessage {
+  type: "batch";
+  transactions: Record<string, unknown>[];
+}
+
+interface StreamDoneMessage {
+  type: "done";
+  total: number;
+}
+
+interface StreamErrorMessage {
+  type: "error";
+  error: string;
+}
+
+type StreamMessage = StreamBatchMessage | StreamDoneMessage | StreamErrorMessage;
+
+/**
+ * Build the query parameter string for proxy requests.
+ */
+function buildQueryParams(
+  address: string,
+  dateRange?: { fromDate: string; toDate: string },
+): string {
+  const params = new URLSearchParams({ address });
+  if (dateRange?.fromDate) {
+    params.set("fromDate", new Date(dateRange.fromDate).toISOString());
+  }
+  if (dateRange?.toDate) {
+    // Set toDate to end of day (23:59:59.999 UTC)
+    const endOfDay = new Date(dateRange.toDate);
+    endOfDay.setUTCHours(23, 59, 59, 999);
+    params.set("toDate", endOfDay.toISOString());
+  }
+  return params.toString();
 }
 
 // ---------------------------------------------------------------------------
@@ -150,12 +191,189 @@ export function useFetchTransactions(): UseFetchTransactionsReturn {
         retryCount: 0,
       }));
 
-      await executeFetch(address, chainId, dateRange, 0, controller.signal);
+      await executeStreamingFetch(address, chainId, dateRange, 0, controller.signal);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
+  /**
+   * Execute a streaming fetch using the NDJSON streaming endpoint.
+   * Falls back to the standard non-streaming endpoint on failure.
+   */
+  const executeStreamingFetch = useCallback(
+    async (
+      address: string,
+      chainId: string,
+      dateRange: { fromDate: string; toDate: string } | undefined,
+      attempt: number,
+      signal: AbortSignal,
+    ) => {
+      try {
+        const queryString = buildQueryParams(address, dateRange);
+        const res = await fetch(
+          `/api/proxy/${chainId}/stream?${queryString}`,
+          { signal },
+        );
+
+        if (signal.aborted) return;
+
+        if (!res.ok) {
+          // Fall back to non-streaming fetch on error
+          await executeFetch(address, chainId, dateRange, attempt, signal);
+          return;
+        }
+
+        // Check if we got a streaming response
+        const contentType = res.headers.get("Content-Type") ?? "";
+        if (!contentType.includes("ndjson")) {
+          // Not a streaming response — fall back
+          await executeFetch(address, chainId, dateRange, attempt, signal);
+          return;
+        }
+
+        // Read the NDJSON stream
+        const reader = res.body?.getReader();
+        if (!reader) {
+          await executeFetch(address, chainId, dateRange, attempt, signal);
+          return;
+        }
+
+        const decoder = new TextDecoder();
+        let buffer = "";
+        const allTransactions: Transaction[] = [];
+
+        while (true) {
+          if (signal.aborted) {
+            reader.cancel();
+            return;
+          }
+
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          // Keep the last potentially incomplete line in the buffer
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+
+            try {
+              const msg = JSON.parse(trimmed) as StreamMessage;
+
+              if (msg.type === "batch") {
+                const batch = msg.transactions.map(deserialiseTransaction);
+                allTransactions.push(...batch);
+
+                // Update state incrementally — show results as they stream in
+                setState((prev) => ({
+                  ...prev,
+                  status: "streaming",
+                  transactions: [...allTransactions],
+                  transactionCount: allTransactions.length,
+                }));
+              } else if (msg.type === "done") {
+                // Persist to localStorage cache
+                const cacheKey = buildCacheKey(
+                  chainId,
+                  address,
+                  dateRange?.fromDate,
+                  dateRange?.toDate,
+                );
+                setCachedTransactions(cacheKey, allTransactions);
+
+                setState((prev) => ({
+                  ...prev,
+                  status: "success",
+                  transactions: allTransactions,
+                  transactionCount: allTransactions.length,
+                  error: null,
+                }));
+              } else if (msg.type === "error") {
+                // Handle streaming error with retry logic
+                if (attempt < MAX_RETRIES) {
+                  const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+                  setState((prev) => ({
+                    ...prev,
+                    warnings: [
+                      ...prev.warnings,
+                      `Retry ${attempt + 1}/${MAX_RETRIES}: ${msg.error}. Retrying in ${(delay / 1000).toFixed(1)}s…`,
+                    ],
+                    retryCount: attempt + 1,
+                  }));
+                  await sleep(delay);
+                  if (!signal.aborted) {
+                    await executeStreamingFetch(
+                      address,
+                      chainId,
+                      dateRange,
+                      attempt + 1,
+                      signal,
+                    );
+                  }
+                  return;
+                }
+
+                setState((prev) => ({
+                  ...prev,
+                  status: "error",
+                  error: msg.error,
+                  retryCount: attempt,
+                }));
+              }
+            } catch {
+              // Skip malformed JSON lines
+            }
+          }
+        }
+      } catch (err: unknown) {
+        if (signal.aborted) return;
+
+        const message =
+          err instanceof Error ? err.message : "An unexpected error occurred";
+
+        // Auto-retry on network errors if retries remain
+        if (attempt < MAX_RETRIES) {
+          const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+          setState((prev) => ({
+            ...prev,
+            warnings: [
+              ...prev.warnings,
+              `Retry ${attempt + 1}/${MAX_RETRIES}: ${message}. Retrying in ${(delay / 1000).toFixed(1)}s…`,
+            ],
+            retryCount: attempt + 1,
+          }));
+          await sleep(delay);
+          if (!signal.aborted) {
+            await executeStreamingFetch(
+              address,
+              chainId,
+              dateRange,
+              attempt + 1,
+              signal,
+            );
+          }
+          return;
+        }
+
+        setState((prev) => ({
+          ...prev,
+          status: "error",
+          error: message,
+          retryCount: attempt,
+        }));
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  /**
+   * Legacy non-streaming fetch. Used as fallback when streaming is unavailable.
+   */
   const executeFetch = useCallback(
     async (
       address: string,
@@ -165,17 +383,8 @@ export function useFetchTransactions(): UseFetchTransactionsReturn {
       signal: AbortSignal,
     ) => {
       try {
-        const params = new URLSearchParams({ address });
-        if (dateRange?.fromDate) {
-          params.set("fromDate", new Date(dateRange.fromDate).toISOString());
-        }
-        if (dateRange?.toDate) {
-          // Set toDate to end of day (23:59:59.999 UTC)
-          const endOfDay = new Date(dateRange.toDate);
-          endOfDay.setUTCHours(23, 59, 59, 999);
-          params.set("toDate", endOfDay.toISOString());
-        }
-        const res = await fetch(`/api/proxy/${chainId}?${params.toString()}`, {
+        const queryString = buildQueryParams(address, dateRange);
+        const res = await fetch(`/api/proxy/${chainId}?${queryString}`, {
           signal,
         });
 
@@ -292,14 +501,14 @@ export function useFetchTransactions(): UseFetchTransactionsReturn {
       error: null,
     }));
 
-    await executeFetch(
+    await executeStreamingFetch(
       params.address,
       params.chainId,
       params.dateRange,
       nextAttempt,
       controller.signal,
     );
-  }, [state.status, state.retryCount, executeFetch]);
+  }, [state.status, state.retryCount, executeStreamingFetch]);
 
   const reset = useCallback(() => {
     abortRef.current?.abort();

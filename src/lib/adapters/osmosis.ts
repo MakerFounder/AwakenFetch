@@ -882,6 +882,7 @@ async function fetchAllTransactions(
     `message.sender='${address}'`,
     allTxs,
     options,
+    address,
   );
 
   // Fetch transactions where address is recipient
@@ -889,6 +890,7 @@ async function fetchAllTransactions(
     `transfer.recipient='${address}'`,
     allTxs,
     options,
+    address,
   );
 
   const results = Array.from(allTxs.values());
@@ -914,6 +916,7 @@ async function fetchTxsByEvent(
   eventQuery: string,
   txMap: Map<string, CosmosTxResponse>,
   options?: FetchOptions,
+  address?: string,
 ): Promise<void> {
   let page = 1;
   const limit = options?.limit ?? PAGE_LIMIT;
@@ -927,9 +930,21 @@ async function fetchTxsByEvent(
 
     if (!data.tx_responses || data.tx_responses.length === 0) break;
 
+    const newTxs: CosmosTxResponse[] = [];
     for (const tx of data.tx_responses) {
       if (!txMap.has(tx.txhash)) {
         txMap.set(tx.txhash, tx);
+        newTxs.push(tx);
+      }
+    }
+
+    // Report progress for streaming
+    if (options?.onProgress && address && newTxs.length > 0) {
+      const batch = newTxs
+        .map((tx) => mapTransaction(tx, address))
+        .filter((tx): tx is Transaction => tx !== null);
+      if (batch.length > 0) {
+        options.onProgress(batch);
       }
     }
 

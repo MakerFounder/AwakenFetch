@@ -26,6 +26,8 @@ export interface FetchOptions {
   toDate?: Date;
   cursor?: string;
   limit?: number;
+  /** Optional callback invoked with each batch of transactions as they are fetched (for streaming). */
+  onProgress?: (batch: Transaction[]) => void;
 }
 
 /** A multi-asset entry (used for LP add/remove). */
