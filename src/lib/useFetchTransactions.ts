@@ -9,6 +9,11 @@
 
 import { useState, useCallback, useRef } from "react";
 import type { Transaction } from "@/types";
+import {
+  buildCacheKey,
+  getCachedTransactions,
+  setCachedTransactions,
+} from "@/lib/transactionCache";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -115,6 +120,26 @@ export function useFetchTransactions(): UseFetchTransactionsReturn {
 
       lastParamsRef.current = { address, chainId, dateRange };
 
+      // Check localStorage cache before hitting the network
+      const cacheKey = buildCacheKey(
+        chainId,
+        address,
+        dateRange?.fromDate,
+        dateRange?.toDate,
+      );
+      const cached = getCachedTransactions(cacheKey);
+      if (cached) {
+        setState({
+          status: "success",
+          transactions: cached,
+          transactionCount: cached.length,
+          error: null,
+          warnings: [],
+          retryCount: 0,
+        });
+        return;
+      }
+
       setState((prev) => ({
         ...prev,
         status: "loading",
@@ -197,6 +222,15 @@ export function useFetchTransactions(): UseFetchTransactionsReturn {
         if (signal.aborted) return;
 
         const transactions = data.transactions.map(deserialiseTransaction);
+
+        // Persist to localStorage cache for future re-exports
+        const cacheKey = buildCacheKey(
+          chainId,
+          address,
+          dateRange?.fromDate,
+          dateRange?.toDate,
+        );
+        setCachedTransactions(cacheKey, transactions);
 
         setState((prev) => ({
           ...prev,

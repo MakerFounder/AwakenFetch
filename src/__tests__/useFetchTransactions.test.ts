@@ -23,6 +23,7 @@ function mockFetchResponse(
 
 describe("useFetchTransactions", () => {
   beforeEach(() => {
+    localStorage.clear();
     vi.useFakeTimers({ shouldAdvanceTime: true });
   });
 
