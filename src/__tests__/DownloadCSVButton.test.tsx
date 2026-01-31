@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { DownloadCSVButton } from "@/components/DownloadCSVButton";
 import type { Transaction } from "@/types";
 import * as csvModule from "@/lib/csv";
+import * as exportHistory from "@/lib/exportHistory";
 
 afterEach(cleanup);
 
@@ -27,6 +28,8 @@ function makeTx(overrides: Partial<Transaction> = {}): Transaction {
   };
 }
 
+const testDateRange = { fromDate: "2024-01-01", toDate: "2024-12-31" };
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -36,6 +39,7 @@ describe("DownloadCSVButton", () => {
 
   beforeEach(() => {
     downloadCSVSpy = vi.spyOn(csvModule, "downloadCSV").mockImplementation(() => {});
+    localStorage.clear();
   });
 
   afterEach(() => {
@@ -173,5 +177,165 @@ describe("DownloadCSVButton", () => {
     );
     const button = screen.getByRole("button", { name: /download csv/i });
     expect(button.className).toContain("cursor-pointer");
+  });
+
+  // -------------------------------------------------------------------------
+  // Duplicate export warning tests
+  // -------------------------------------------------------------------------
+
+  it("downloads immediately on first export (no warning shown)", async () => {
+    const user = userEvent.setup();
+    render(
+      <DownloadCSVButton
+        transactions={[makeTx()]}
+        chainId="bittensor"
+        address="5FHneW46"
+        dateRange={testDateRange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /download csv/i }));
+
+    // No warning dialog should appear
+    expect(screen.queryByText("Duplicate Export Warning")).not.toBeInTheDocument();
+    expect(downloadCSVSpy).toHaveBeenCalledOnce();
+  });
+
+  it("shows duplicate warning on second export of same address + date range", async () => {
+    const user = userEvent.setup();
+
+    // Pre-record an export for the same combo
+    const key = exportHistory.buildExportKey(
+      "bittensor",
+      "5FHneW46",
+      "2024-01-01",
+      "2024-12-31",
+      "standard",
+    );
+    exportHistory.recordExport(key);
+
+    render(
+      <DownloadCSVButton
+        transactions={[makeTx()]}
+        chainId="bittensor"
+        address="5FHneW46"
+        dateRange={testDateRange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /download csv/i }));
+
+    // Warning should appear
+    expect(screen.getByText("Duplicate Export Warning")).toBeInTheDocument();
+    // CSV should NOT have been downloaded yet
+    expect(downloadCSVSpy).not.toHaveBeenCalled();
+  });
+
+  it("proceeds with download when user clicks Export Anyway", async () => {
+    const user = userEvent.setup();
+
+    const key = exportHistory.buildExportKey(
+      "bittensor",
+      "5FHneW46",
+      "2024-01-01",
+      "2024-12-31",
+      "standard",
+    );
+    exportHistory.recordExport(key);
+
+    render(
+      <DownloadCSVButton
+        transactions={[makeTx()]}
+        chainId="bittensor"
+        address="5FHneW46"
+        dateRange={testDateRange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /download csv/i }));
+    expect(screen.getByText("Duplicate Export Warning")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /export anyway/i }));
+
+    expect(downloadCSVSpy).toHaveBeenCalledOnce();
+    // Warning should be dismissed
+    expect(screen.queryByText("Duplicate Export Warning")).not.toBeInTheDocument();
+  });
+
+  it("cancels export when user clicks Cancel on warning", async () => {
+    const user = userEvent.setup();
+
+    const key = exportHistory.buildExportKey(
+      "bittensor",
+      "5FHneW46",
+      "2024-01-01",
+      "2024-12-31",
+      "standard",
+    );
+    exportHistory.recordExport(key);
+
+    render(
+      <DownloadCSVButton
+        transactions={[makeTx()]}
+        chainId="bittensor"
+        address="5FHneW46"
+        dateRange={testDateRange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /download csv/i }));
+    await user.click(screen.getByRole("button", { name: /cancel/i }));
+
+    expect(downloadCSVSpy).not.toHaveBeenCalled();
+    expect(screen.queryByText("Duplicate Export Warning")).not.toBeInTheDocument();
+  });
+
+  it("records the export after first download for future detection", async () => {
+    const user = userEvent.setup();
+    const recordSpy = vi.spyOn(exportHistory, "recordExport");
+
+    render(
+      <DownloadCSVButton
+        transactions={[makeTx()]}
+        chainId="bittensor"
+        address="5FHneW46"
+        dateRange={testDateRange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /download csv/i }));
+
+    expect(recordSpy).toHaveBeenCalledOnce();
+    expect(recordSpy).toHaveBeenCalledWith(
+      exportHistory.buildExportKey("bittensor", "5FHneW46", "2024-01-01", "2024-12-31", "standard"),
+    );
+  });
+
+  it("does not check export history when dateRange is not provided", async () => {
+    const user = userEvent.setup();
+
+    // Pre-record — but with no dateRange prop the button should skip the check
+    const key = exportHistory.buildExportKey(
+      "bittensor",
+      "5FHneW46",
+      "2024-01-01",
+      "2024-12-31",
+      "standard",
+    );
+    exportHistory.recordExport(key);
+
+    render(
+      <DownloadCSVButton
+        transactions={[makeTx()]}
+        chainId="bittensor"
+        address="5FHneW46"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /download csv/i }));
+
+    // Should download directly without warning
+    expect(screen.queryByText("Duplicate Export Warning")).not.toBeInTheDocument();
+    expect(downloadCSVSpy).toHaveBeenCalledOnce();
   });
 });

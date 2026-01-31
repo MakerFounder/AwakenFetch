@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { DownloadPerpsCSVButton } from "@/components/DownloadPerpsCSVButton";
 import type { PerpTransaction } from "@/types";
 import * as csvModule from "@/lib/csv";
+import * as exportHistory from "@/lib/exportHistory";
 
 afterEach(cleanup);
 
@@ -26,6 +27,8 @@ function makePerpTx(overrides: Partial<PerpTransaction> = {}): PerpTransaction {
   };
 }
 
+const testDateRange = { fromDate: "2024-01-01", toDate: "2024-12-31" };
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -37,6 +40,7 @@ describe("DownloadPerpsCSVButton", () => {
     downloadCSVSpy = vi
       .spyOn(csvModule, "downloadCSV")
       .mockImplementation(() => {});
+    localStorage.clear();
   });
 
   afterEach(() => {
@@ -158,5 +162,130 @@ describe("DownloadPerpsCSVButton", () => {
     );
     const button = screen.getByRole("button", { name: /download perps csv/i });
     expect(button.className).toContain("cursor-pointer");
+  });
+
+  // -------------------------------------------------------------------------
+  // Duplicate export warning tests
+  // -------------------------------------------------------------------------
+
+  it("downloads immediately on first export (no warning)", async () => {
+    const user = userEvent.setup();
+    render(
+      <DownloadPerpsCSVButton
+        perpTransactions={[makePerpTx()]}
+        chainId="injective"
+        address="inj1qy09"
+        dateRange={testDateRange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /download perps csv/i }));
+
+    expect(screen.queryByText("Duplicate Export Warning")).not.toBeInTheDocument();
+    expect(downloadCSVSpy).toHaveBeenCalledOnce();
+  });
+
+  it("shows duplicate warning on second export of same address + date range", async () => {
+    const user = userEvent.setup();
+
+    const key = exportHistory.buildExportKey(
+      "injective",
+      "inj1qy09",
+      "2024-01-01",
+      "2024-12-31",
+      "perps",
+    );
+    exportHistory.recordExport(key);
+
+    render(
+      <DownloadPerpsCSVButton
+        perpTransactions={[makePerpTx()]}
+        chainId="injective"
+        address="inj1qy09"
+        dateRange={testDateRange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /download perps csv/i }));
+
+    expect(screen.getByText("Duplicate Export Warning")).toBeInTheDocument();
+    expect(downloadCSVSpy).not.toHaveBeenCalled();
+  });
+
+  it("proceeds with download when user clicks Export Anyway", async () => {
+    const user = userEvent.setup();
+
+    const key = exportHistory.buildExportKey(
+      "injective",
+      "inj1qy09",
+      "2024-01-01",
+      "2024-12-31",
+      "perps",
+    );
+    exportHistory.recordExport(key);
+
+    render(
+      <DownloadPerpsCSVButton
+        perpTransactions={[makePerpTx()]}
+        chainId="injective"
+        address="inj1qy09"
+        dateRange={testDateRange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /download perps csv/i }));
+    await user.click(screen.getByRole("button", { name: /export anyway/i }));
+
+    expect(downloadCSVSpy).toHaveBeenCalledOnce();
+    expect(screen.queryByText("Duplicate Export Warning")).not.toBeInTheDocument();
+  });
+
+  it("cancels export when user clicks Cancel", async () => {
+    const user = userEvent.setup();
+
+    const key = exportHistory.buildExportKey(
+      "injective",
+      "inj1qy09",
+      "2024-01-01",
+      "2024-12-31",
+      "perps",
+    );
+    exportHistory.recordExport(key);
+
+    render(
+      <DownloadPerpsCSVButton
+        perpTransactions={[makePerpTx()]}
+        chainId="injective"
+        address="inj1qy09"
+        dateRange={testDateRange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /download perps csv/i }));
+    await user.click(screen.getByRole("button", { name: /cancel/i }));
+
+    expect(downloadCSVSpy).not.toHaveBeenCalled();
+    expect(screen.queryByText("Duplicate Export Warning")).not.toBeInTheDocument();
+  });
+
+  it("records export after download for future detection", async () => {
+    const user = userEvent.setup();
+    const recordSpy = vi.spyOn(exportHistory, "recordExport");
+
+    render(
+      <DownloadPerpsCSVButton
+        perpTransactions={[makePerpTx()]}
+        chainId="injective"
+        address="inj1qy09"
+        dateRange={testDateRange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /download perps csv/i }));
+
+    expect(recordSpy).toHaveBeenCalledOnce();
+    expect(recordSpy).toHaveBeenCalledWith(
+      exportHistory.buildExportKey("injective", "inj1qy09", "2024-01-01", "2024-12-31", "perps"),
+    );
   });
 });

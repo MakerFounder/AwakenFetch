@@ -8,6 +8,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import type { ChainInfo, Transaction, TransactionType } from "@/types";
+import type { DateRange } from "@/components/DateRangeFilter";
 import { WalletForm } from "@/components/WalletForm";
 import { TransactionTable } from "@/components/TransactionTable";
 import { TransactionTableSkeleton } from "@/components/TransactionTableSkeleton";
@@ -28,16 +29,21 @@ export function Dashboard({ chains }: DashboardProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [activeChainId, setActiveChainId] = useState<string>("");
   const [activeAddress, setActiveAddress] = useState<string>("");
+  const [activeDateRange, setActiveDateRange] = useState<DateRange | null>(null);
   const [typeFilter, setTypeFilter] = useState<TransactionType | "" | "needs_review">("");
   const [isFetching, setIsFetching] = useState(false);
 
   const handleTransactionsFetched = (
     txs: Transaction[],
     chainId: string,
+    dateRange?: DateRange,
   ) => {
     setTransactions(txs);
     setActiveChainId(chainId);
     setTypeFilter("");
+    if (dateRange) {
+      setActiveDateRange(dateRange);
+    }
   };
 
   const handleFormSubmit = useCallback(
@@ -122,12 +128,14 @@ export function Dashboard({ chains }: DashboardProps) {
                   perpTransactions={[]}
                   chainId={activeChainId}
                   address={activeAddress}
+                  dateRange={activeDateRange}
                 />
               )}
               <DownloadCSVButton
                 transactions={filteredTransactions}
                 chainId={activeChainId}
                 address={activeAddress}
+                dateRange={activeDateRange}
               />
             </div>
           </div>

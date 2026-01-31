@@ -24,6 +24,7 @@ export interface WalletFormProps {
   onTransactionsFetched?: (
     transactions: import("@/types").Transaction[],
     chainId: string,
+    dateRange: DateRange,
   ) => void;
   /** Called when the fetch loading state changes. */
   onLoadingChange?: (isLoading: boolean) => void;
@@ -51,9 +52,9 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched, onLoadingC
       fetchState.transactions.length > 0 &&
       selectedChainId
     ) {
-      onTransactionsFetched?.(fetchState.transactions, selectedChainId);
+      onTransactionsFetched?.(fetchState.transactions, selectedChainId, dateRange);
     }
-  }, [fetchState.status, fetchState.transactions, selectedChainId, onTransactionsFetched]);
+  }, [fetchState.status, fetchState.transactions, selectedChainId, onTransactionsFetched, dateRange]);
 
   const enabledChains = useMemo(
     () => chains.filter((c) => c.enabled),
