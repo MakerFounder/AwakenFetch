@@ -17,6 +17,7 @@ import { ergoAdapter } from "./ergo";
 import { polkadotAdapter } from "./polkadot";
 import { osmosisAdapter } from "./osmosis";
 import { roninAdapter } from "./ronin";
+import { variationalAdapter } from "./variational";
 
 export { ChainAdapterRegistry } from "./registry";
 
@@ -34,6 +35,7 @@ registry.register(ergoAdapter);
 registry.register(polkadotAdapter);
 registry.register(osmosisAdapter);
 registry.register(roninAdapter);
+registry.register(variationalAdapter);
 
 /** Register a chain adapter on the default registry. */
 export function registerAdapter(adapter: ChainAdapter): void {
