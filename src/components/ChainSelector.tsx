@@ -124,7 +124,6 @@ export function ChainSelector({ chains, selectedChainId, onChainChange, disabled
                             >
                                 <ChainIcon chainId={chain.chainId} chainName={chain.chainName} />
                                 <span>{chain.chainName}</span>
-                                <span className="text-muted text-xs">({chain.ticker})</span>
                             </li>
                         ))}
                     </ul>
