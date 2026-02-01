@@ -41,7 +41,8 @@ vi.mock("@/lib/adapters", () => ({
       chainId === "bittensor" ||
       chainId === "injective" ||
       chainId === "osmosis" ||
-      chainId === "ergo"
+      chainId === "ergo" ||
+      chainId === "extended"
     ) {
       return mockAdapter;
     }
@@ -259,6 +260,15 @@ describe("GET /api/proxy/[chain]", () => {
       "/api/proxy/ergo?address=kaspa:qr0dummyaddr123",
     );
     const res = await GET(req, createParams("ergo"));
+    expect(res.status).toBe(200);
+  });
+
+  it("accepts extended (StarkNet) chain", async () => {
+    mockFetchTransactions.mockResolvedValue([]);
+    const req = createRequest(
+      "/api/proxy/extended?address=kaspa:qr0dummyaddr123",
+    );
+    const res = await GET(req, createParams("extended"));
     expect(res.status).toBe(200);
   });
 

@@ -5,7 +5,7 @@
  * This route proxies requests server-side so the client only calls our
  * own origin (same-origin → no CORS issues).
  *
- * Supported chains: bittensor, kaspa, injective, osmosis, ergo
+ * Supported chains: bittensor, kaspa, injective, osmosis, ergo, ronin, extended
  *
  * GET /api/proxy/[chain]?address=<addr>&fromDate=<iso>&toDate=<iso>
  *
@@ -17,7 +17,7 @@ import { getAdapter } from "@/lib/adapters";
 import type { FetchOptions, Transaction } from "@/types";
 
 /** Chains whose explorer APIs require a server-side proxy due to CORS. */
-const PROXY_ENABLED_CHAINS = new Set(["bittensor", "kaspa", "injective", "osmosis", "ergo", "ronin"]);
+const PROXY_ENABLED_CHAINS = new Set(["bittensor", "kaspa", "injective", "osmosis", "ergo", "ronin", "extended"]);
 
 /**
  * Serialise a Transaction for JSON transport.
