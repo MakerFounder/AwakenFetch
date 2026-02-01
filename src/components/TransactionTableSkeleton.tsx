@@ -37,22 +37,19 @@ export function TransactionTableSkeleton() {
     >
       {/* Skeleton filter bar */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2">
-          <div className="h-3 w-10 animate-pulse rounded bg-foreground/10" />
-          <div className="h-7 w-52 animate-pulse rounded-md bg-foreground/10" />
-        </div>
-        <div className="ml-auto h-3 w-36 animate-pulse rounded bg-foreground/10" />
+        <div className="h-8 w-64 animate-pulse rounded-xl bg-surface" />
+        <div className="ml-auto h-3 w-36 animate-pulse rounded bg-surface" />
       </div>
 
       {/* Skeleton table */}
-      <div className="overflow-x-auto rounded-lg border border-foreground/10">
+      <div className="overflow-x-auto rounded-2xl border border-border bg-background shadow-sm">
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="border-b border-foreground/10 bg-foreground/[0.03]">
+            <tr className="border-b border-border bg-surface/60">
               {COLUMN_DEFS.map((col) => (
                 <th
                   key={col.label}
-                  className="whitespace-nowrap px-3 py-2.5 text-xs font-semibold text-foreground/70"
+                  className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-muted"
                 >
                   {col.label}
                 </th>
@@ -63,14 +60,14 @@ export function TransactionTableSkeleton() {
             {Array.from({ length: SKELETON_ROWS }, (_, rowIdx) => (
               <tr
                 key={rowIdx}
-                className="border-b border-foreground/5"
+                className="border-b border-border/50"
               >
                 {COLUMN_DEFS.map((col) => (
-                  <td key={col.label} className="px-3 py-2">
+                  <td key={col.label} className="px-4 py-2.5">
                     <div
-                      className={`h-3.5 ${col.width} animate-pulse rounded bg-foreground/10`}
+                      className={`h-3.5 ${col.width} animate-pulse rounded-md bg-surface`}
                       style={{
-                        animationDelay: `${rowIdx * 50}ms`,
+                        animationDelay: `${rowIdx * 60}ms`,
                       }}
                     />
                   </td>
@@ -83,12 +80,12 @@ export function TransactionTableSkeleton() {
 
       {/* Skeleton pagination */}
       <div className="flex items-center justify-between">
-        <div className="h-3 w-24 animate-pulse rounded bg-foreground/10" />
+        <div className="h-3 w-24 animate-pulse rounded bg-surface" />
         <div className="flex items-center gap-1">
           {Array.from({ length: 4 }, (_, i) => (
             <div
               key={i}
-              className="h-6 w-8 animate-pulse rounded-md bg-foreground/10"
+              className="h-7 w-9 animate-pulse rounded-lg bg-surface"
             />
           ))}
         </div>

@@ -99,7 +99,7 @@ export function TransactionTypeFilter({
   const hasOtherType = availableTypes.includes("other");
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-2">
       <label
         htmlFor="transaction-type-filter"
         className="text-sm font-medium text-foreground/80"
@@ -112,11 +112,11 @@ export function TransactionTypeFilter({
         onChange={(e) => onChange(e.target.value as TransactionType | "" | "needs_review")}
         disabled={disabled || sortedTypes.length === 0}
         aria-label="Filter by transaction type"
-        className="cursor-pointer rounded-lg border border-foreground/20 bg-background px-3 py-2.5 text-sm text-foreground transition-colors hover:border-foreground/40 focus:border-foreground/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        className="cursor-pointer rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground transition-all hover:border-border-hover focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
       >
         <option value="">All types</option>
         {hasOtherType && (
-          <option value="needs_review">⚠ Needs Review</option>
+          <option value="needs_review">Needs Review</option>
         )}
         {sortedTypes.map((t) => (
           <option key={t} value={t}>

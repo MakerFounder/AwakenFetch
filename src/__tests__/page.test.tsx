@@ -8,7 +8,7 @@ describe("Home Page", () => {
   it("renders the AwakenFetch heading", () => {
     const { container } = render(<Home />);
     const heading = within(container).getByRole("heading", {
-      name: /awakenfetch/i,
+      name: /awaken\s*fetch/i,
     });
     expect(heading).toBeInTheDocument();
   });
@@ -17,7 +17,7 @@ describe("Home Page", () => {
     const { container } = render(<Home />);
     expect(
       within(container).getByText(
-        /fetch crypto transactions and export awaken tax-compliant csvs/i,
+        /fetch on-chain transactions/i,
       ),
     ).toBeInTheDocument();
   });

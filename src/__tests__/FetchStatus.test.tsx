@@ -25,7 +25,7 @@ describe("FetchStatus", () => {
 
   it("shows a spinner and loading message when status is loading", () => {
     render(<FetchStatus {...defaultProps} status="loading" />);
-    expect(screen.getByText("Fetching transactions…")).toBeInTheDocument();
+    expect(screen.getByText("Fetching transactions...")).toBeInTheDocument();
   });
 
   it("shows transaction count on success", () => {

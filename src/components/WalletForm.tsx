@@ -118,10 +118,10 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched, onLoadingC
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex w-full max-w-xl flex-col gap-4"
+      className="flex w-full flex-col gap-5"
     >
       {/* Chain selector */}
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         <div className="flex items-center gap-1.5">
           <label
             htmlFor="chain-select"
@@ -134,7 +134,7 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched, onLoadingC
             onClick={() => setHelpOpen(true)}
             aria-label="How to find your wallet address"
             title="How to find your wallet address"
-            className="cursor-pointer rounded-full text-foreground/40 transition-colors hover:text-foreground/70"
+            className="cursor-pointer rounded-full text-muted transition-colors hover:text-accent"
           >
             <svg
               width="16"
@@ -164,9 +164,9 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched, onLoadingC
           value={selectedChainId}
           onChange={handleChainChange}
           disabled={isLoading}
-          className="cursor-pointer rounded-lg border border-foreground/20 bg-background px-3 py-2.5 text-sm text-foreground transition-colors hover:border-foreground/40 focus:border-foreground/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          className="cursor-pointer rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground transition-all hover:border-border-hover focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <option value="">Select a chain…</option>
+          <option value="">Select a chain...</option>
           {enabledChains.map((chain) => (
             <option key={chain.chainId} value={chain.chainId}>
               {chain.chainName} ({chain.ticker})
@@ -176,7 +176,7 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched, onLoadingC
       </div>
 
       {/* Wallet address input */}
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         <label
           htmlFor="wallet-address"
           className="text-sm font-medium text-foreground/80"
@@ -195,18 +195,22 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched, onLoadingC
           disabled={isLoading}
           aria-invalid={!!addressError}
           aria-describedby={addressError ? "address-error" : undefined}
-          className={`rounded-lg border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-foreground/40 transition-colors hover:border-foreground/40 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
+          className={`rounded-xl border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted/60 transition-all hover:border-border-hover focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 ${
             addressError
-              ? "border-red-500 focus:border-red-500"
-              : "border-foreground/20 focus:border-foreground/60"
+              ? "border-error focus:border-error focus:ring-error/20"
+              : "border-border focus:border-accent focus:ring-accent/20"
           }`}
         />
         {addressError && (
           <p
             id="address-error"
             role="alert"
-            className="text-xs text-red-500"
+            className="text-xs text-error flex items-center gap-1"
           >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2" />
+              <path d="M6 3.5v3M6 8v.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
             {addressError}
           </p>
         )}
@@ -223,9 +227,23 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched, onLoadingC
       <button
         type="submit"
         disabled={!isFormValid || isLoading}
-        className="cursor-pointer rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+        className="cursor-pointer rounded-xl bg-accent px-4 py-3.5 text-sm font-semibold text-white transition-all hover:bg-accent-hover hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
       >
-        {isLoading ? "Fetching…" : "Fetch Transactions"}
+        {isLoading ? (
+          <span className="flex items-center justify-center gap-2">
+            <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray="31.4 31.4" strokeDashoffset="10" />
+            </svg>
+            Fetching...
+          </span>
+        ) : (
+          <span className="flex items-center justify-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M8 2v8m0 0L5 7m3 3l3-3M3 12h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Fetch Transactions
+          </span>
+        )}
       </button>
 
       {/* Fetch progress / status */}

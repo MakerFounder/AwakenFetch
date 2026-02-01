@@ -504,7 +504,7 @@ describe("TransactionTable — ambiguous transactions", () => {
 
     // Verify yellow background class is applied
     otherRows.forEach((row) => {
-      expect(row.className).toContain("bg-yellow-50");
+      expect(row.className).toContain("bg-warning/5");
     });
 
     // Non-other rows should NOT have the yellow background
@@ -512,7 +512,7 @@ describe("TransactionTable — ambiguous transactions", () => {
       (row) => !row.hasAttribute("data-needs-review"),
     );
     normalRows.forEach((row) => {
-      expect(row.className).not.toContain("bg-yellow-50");
+      expect(row.className).not.toContain("bg-warning/5");
     });
   });
 

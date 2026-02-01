@@ -25,12 +25,12 @@ export function DuplicateExportWarning({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="duplicate-export-title"
     >
-      <div className="mx-4 w-full max-w-md rounded-xl border border-foreground/10 bg-background p-6 shadow-xl">
+      <div className="mx-4 w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-xl">
         <div className="mb-1 flex items-center gap-2">
           <svg
             width="20"
@@ -39,7 +39,7 @@ export function DuplicateExportWarning({
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
             aria-hidden="true"
-            className="shrink-0 text-yellow-500"
+            className="shrink-0 text-warning"
           >
             <path
               d="M10 2L1 18h18L10 2z"
@@ -56,13 +56,13 @@ export function DuplicateExportWarning({
           </svg>
           <h2
             id="duplicate-export-title"
-            className="text-base font-semibold text-foreground"
+            className="font-display text-base text-foreground"
           >
             Duplicate Export Warning
           </h2>
         </div>
 
-        <p className="mt-3 text-sm leading-relaxed text-foreground/70">
+        <p className="mt-3 text-sm leading-relaxed text-muted">
           You have already exported a CSV for this address and date range.
           Importing this file again into Awaken may create duplicate
           transactions.
@@ -72,14 +72,14 @@ export function DuplicateExportWarning({
           <button
             type="button"
             onClick={onCancel}
-            className="cursor-pointer rounded-lg border border-foreground/20 bg-transparent px-4 py-2 text-sm font-medium text-foreground transition-opacity hover:opacity-70"
+            className="cursor-pointer rounded-xl border border-border bg-transparent px-4 py-2.5 text-sm font-medium text-foreground transition-all hover:bg-surface"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="cursor-pointer rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-90"
+            className="cursor-pointer rounded-xl bg-foreground px-4 py-2.5 text-sm font-semibold text-background transition-all hover:opacity-90"
           >
             Export Anyway
           </button>

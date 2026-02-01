@@ -78,18 +78,18 @@ export function ChainHelpModal({ open, onClose }: ChainHelpModalProps) {
     <dialog
       ref={dialogRef}
       onClick={handleBackdropClick}
-      className="m-auto w-full max-w-md rounded-xl border border-foreground/20 bg-background p-0 shadow-lg backdrop:bg-black/50"
+      className="m-auto w-full max-w-md rounded-2xl border border-border bg-background p-0 shadow-xl backdrop:bg-black/50"
     >
       <div className="flex flex-col gap-4 p-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-lg text-foreground">
             Finding Your Wallet Address
           </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close help modal"
-            className="cursor-pointer rounded-md p-1 text-foreground/60 transition-colors hover:bg-foreground/10 hover:text-foreground"
+            className="cursor-pointer rounded-lg p-1.5 text-muted transition-colors hover:bg-surface hover:text-foreground"
           >
             <svg
               width="20"
@@ -114,22 +114,22 @@ export function ChainHelpModal({ open, onClose }: ChainHelpModalProps) {
           {chainHelpEntries.map((entry) => (
             <div
               key={entry.ticker}
-              className="rounded-lg border border-foreground/10 p-3"
+              className="rounded-xl border border-border bg-surface/50 p-4"
             >
-              <p className="text-sm font-medium text-foreground">
+              <p className="text-sm font-semibold text-foreground">
                 {entry.chainName} ({entry.ticker})
               </p>
-              <p className="mt-1 text-xs leading-relaxed text-foreground/70">
+              <p className="mt-1.5 text-xs leading-relaxed text-muted">
                 {entry.instructions}
               </p>
-              <p className="mt-1.5 text-xs text-foreground/50">
-                Example: <code className="font-mono">{entry.examplePrefix}</code>
+              <p className="mt-2 text-xs text-muted/70">
+                Example: <code className="font-mono text-accent">{entry.examplePrefix}</code>
               </p>
             </div>
           ))}
         </div>
 
-        <p className="text-xs text-foreground/50">
+        <p className="text-xs text-muted/70">
           Only public wallet addresses are needed — never share your private
           keys or seed phrases.
         </p>

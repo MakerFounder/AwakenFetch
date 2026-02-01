@@ -198,7 +198,7 @@ describe("TransactionTypeFilter — Needs Review", () => {
         availableTypes={["send", "other"]}
       />,
     );
-    expect(screen.getByText("⚠ Needs Review")).toBeInTheDocument();
+    expect(screen.getByText("Needs Review")).toBeInTheDocument();
   });
 
   it('does NOT show "Needs Review" option when "other" type is not available', () => {
@@ -209,7 +209,7 @@ describe("TransactionTypeFilter — Needs Review", () => {
         availableTypes={["send", "receive"]}
       />,
     );
-    expect(screen.queryByText("⚠ Needs Review")).not.toBeInTheDocument();
+    expect(screen.queryByText("Needs Review")).not.toBeInTheDocument();
   });
 
   it('calls onChange with "needs_review" when Needs Review is selected', async () => {

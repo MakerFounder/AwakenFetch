@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AwakenFetch",
+  title: "AwakenFetch — Crypto Transaction Exporter",
   description:
     "Fetch crypto transactions and export Awaken Tax-compliant CSVs",
 };

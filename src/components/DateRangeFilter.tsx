@@ -80,7 +80,7 @@ export function DateRangeFilter({
   );
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-2">
       <label className="text-sm font-medium text-foreground/80">
         Date Range
       </label>
@@ -90,7 +90,7 @@ export function DateRangeFilter({
           onChange={handlePresetChange}
           disabled={disabled}
           aria-label="Date range preset"
-          className="cursor-pointer rounded-lg border border-foreground/20 bg-background px-3 py-2.5 text-sm text-foreground transition-colors hover:border-foreground/40 focus:border-foreground/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          className="cursor-pointer rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground transition-all hover:border-border-hover focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
         >
           <option value="previous_year">{previousYearLabel}</option>
           <option value="custom">Custom Range</option>
@@ -103,16 +103,16 @@ export function DateRangeFilter({
             onChange={handleFromDateChange}
             disabled={disabled}
             aria-label="Start date"
-            className="cursor-pointer rounded-lg border border-foreground/20 bg-background px-3 py-2.5 text-sm text-foreground transition-colors hover:border-foreground/40 focus:border-foreground/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            className="cursor-pointer rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground transition-all hover:border-border-hover focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           />
-          <span className="text-sm text-foreground/50">to</span>
+          <span className="text-sm text-muted">to</span>
           <input
             type="date"
             value={value.toDate}
             onChange={handleToDateChange}
             disabled={disabled}
             aria-label="End date"
-            className="cursor-pointer rounded-lg border border-foreground/20 bg-background px-3 py-2.5 text-sm text-foreground transition-colors hover:border-foreground/40 focus:border-foreground/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            className="cursor-pointer rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground transition-all hover:border-border-hover focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
       </div>
