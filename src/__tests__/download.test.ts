@@ -74,11 +74,11 @@ describe("buildCSVFilename", () => {
   it("appends _perps suffix when variant is 'perps'", () => {
     const result = buildCSVFilename(
       "injective",
-      "inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz",
+      "inj182dsnkeulz9gtw35h6aqrxfv0j4cm7pyahu0ej",
       new Date("2024-04-01T00:00:00Z"),
       "perps",
     );
-    expect(result).toBe("awakenfetch_injective_inj1qy09_20240401_perps.csv");
+    expect(result).toBe("awakenfetch_injective_inj182ds_20240401_perps.csv");
   });
 
   it("does not append suffix when variant is 'standard'", () => {

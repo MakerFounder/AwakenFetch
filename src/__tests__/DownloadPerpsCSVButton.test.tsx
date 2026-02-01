@@ -52,7 +52,7 @@ describe("DownloadPerpsCSVButton", () => {
       <DownloadPerpsCSVButton
         perpTransactions={[makePerpTx()]}
         chainId="injective"
-        address="inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz"
+        address="inj182dsnkeulz9gtw35h6aqrxfv0j4cm7pyahu0ej"
       />,
     );
     expect(
@@ -65,7 +65,7 @@ describe("DownloadPerpsCSVButton", () => {
       <DownloadPerpsCSVButton
         perpTransactions={[]}
         chainId="injective"
-        address="inj1qy09"
+        address="inj182ds"
       />,
     );
     expect(
@@ -78,7 +78,7 @@ describe("DownloadPerpsCSVButton", () => {
       <DownloadPerpsCSVButton
         perpTransactions={[makePerpTx()]}
         chainId="injective"
-        address="inj1qy09"
+        address="inj182ds"
         disabled
       />,
     );
@@ -92,7 +92,7 @@ describe("DownloadPerpsCSVButton", () => {
       <DownloadPerpsCSVButton
         perpTransactions={[makePerpTx()]}
         chainId="injective"
-        address="inj1qy09"
+        address="inj182ds"
       />,
     );
     expect(
@@ -117,7 +117,7 @@ describe("DownloadPerpsCSVButton", () => {
       <DownloadPerpsCSVButton
         perpTransactions={txs}
         chainId="injective"
-        address="inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz"
+        address="inj182dsnkeulz9gtw35h6aqrxfv0j4cm7pyahu0ej"
       />,
     );
 
@@ -133,7 +133,7 @@ describe("DownloadPerpsCSVButton", () => {
 
     // Verify the filename includes "perps"
     const filename = downloadCSVSpy.mock.calls[0][1] as string;
-    expect(filename).toMatch(/^awakenfetch_injective_inj1qy09_\d{8}_perps\.csv$/);
+    expect(filename).toMatch(/^awakenfetch_injective_inj182ds_\d{8}_perps\.csv$/);
   });
 
   it("does not call downloadCSV when clicked while disabled", async () => {
@@ -142,7 +142,7 @@ describe("DownloadPerpsCSVButton", () => {
       <DownloadPerpsCSVButton
         perpTransactions={[]}
         chainId="injective"
-        address="inj1qy09"
+        address="inj182ds"
       />,
     );
 
@@ -157,7 +157,7 @@ describe("DownloadPerpsCSVButton", () => {
       <DownloadPerpsCSVButton
         perpTransactions={[makePerpTx()]}
         chainId="injective"
-        address="inj1qy09"
+        address="inj182ds"
       />,
     );
     const button = screen.getByRole("button", { name: /download perps csv/i });
@@ -174,7 +174,7 @@ describe("DownloadPerpsCSVButton", () => {
       <DownloadPerpsCSVButton
         perpTransactions={[makePerpTx()]}
         chainId="injective"
-        address="inj1qy09"
+        address="inj182ds"
         dateRange={testDateRange}
       />,
     );
@@ -190,7 +190,7 @@ describe("DownloadPerpsCSVButton", () => {
 
     const key = exportHistory.buildExportKey(
       "injective",
-      "inj1qy09",
+      "inj182ds",
       "2024-01-01",
       "2024-12-31",
       "perps",
@@ -201,7 +201,7 @@ describe("DownloadPerpsCSVButton", () => {
       <DownloadPerpsCSVButton
         perpTransactions={[makePerpTx()]}
         chainId="injective"
-        address="inj1qy09"
+        address="inj182ds"
         dateRange={testDateRange}
       />,
     );
@@ -217,7 +217,7 @@ describe("DownloadPerpsCSVButton", () => {
 
     const key = exportHistory.buildExportKey(
       "injective",
-      "inj1qy09",
+      "inj182ds",
       "2024-01-01",
       "2024-12-31",
       "perps",
@@ -228,7 +228,7 @@ describe("DownloadPerpsCSVButton", () => {
       <DownloadPerpsCSVButton
         perpTransactions={[makePerpTx()]}
         chainId="injective"
-        address="inj1qy09"
+        address="inj182ds"
         dateRange={testDateRange}
       />,
     );
@@ -245,7 +245,7 @@ describe("DownloadPerpsCSVButton", () => {
 
     const key = exportHistory.buildExportKey(
       "injective",
-      "inj1qy09",
+      "inj182ds",
       "2024-01-01",
       "2024-12-31",
       "perps",
@@ -256,7 +256,7 @@ describe("DownloadPerpsCSVButton", () => {
       <DownloadPerpsCSVButton
         perpTransactions={[makePerpTx()]}
         chainId="injective"
-        address="inj1qy09"
+        address="inj182ds"
         dateRange={testDateRange}
       />,
     );
@@ -276,7 +276,7 @@ describe("DownloadPerpsCSVButton", () => {
       <DownloadPerpsCSVButton
         perpTransactions={[makePerpTx()]}
         chainId="injective"
-        address="inj1qy09"
+        address="inj182ds"
         dateRange={testDateRange}
       />,
     );
@@ -285,7 +285,7 @@ describe("DownloadPerpsCSVButton", () => {
 
     expect(recordSpy).toHaveBeenCalledOnce();
     expect(recordSpy).toHaveBeenCalledWith(
-      exportHistory.buildExportKey("injective", "inj1qy09", "2024-01-01", "2024-12-31", "perps"),
+      exportHistory.buildExportKey("injective", "inj182ds", "2024-01-01", "2024-12-31", "perps"),
     );
   });
 });

@@ -30,19 +30,16 @@ import type { Transaction } from "@/types";
 describe("isValidInjectiveAddress", () => {
   it("accepts a valid Injective address (42 chars, inj1 prefix)", () => {
     expect(
-      isValidInjectiveAddress("inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz"),
+      isValidInjectiveAddress("inj182dsnkeulz9gtw35h6aqrxfv0j4cm7pyahu0ej"),
     ).toBe(true);
   });
 
   it("accepts another valid address", () => {
-    // 42 chars: inj1 + 38 lowercase alphanumeric
-    const addr = "inj1" + "a".repeat(38);
-    expect(isValidInjectiveAddress(addr)).toBe(true);
+    expect(isValidInjectiveAddress("inj15mzfsh79vn6pg0kaytjeq8w4ur23clxds8se9n")).toBe(true);
   });
 
   it("accepts address with digits after prefix", () => {
-    const addr = "inj1" + "abc123def456abc123def456abc123def456ab";
-    expect(isValidInjectiveAddress(addr)).toBe(true);
+    expect(isValidInjectiveAddress("inj19vn6pg0kaytjeq8w4ur23clxd5mzfsh75q9dkn")).toBe(true);
   });
 
   it("rejects an address without inj1 prefix", () => {
@@ -53,7 +50,7 @@ describe("isValidInjectiveAddress", () => {
   it("accepts an address with uppercase characters (case-insensitive bech32)", () => {
     // Injective bech32 addresses are case-insensitive; we lowercase before validation
     expect(
-      isValidInjectiveAddress("inj1QY09GSFX3GXQJAHUMQ97ELWXQF4QU5AGDMQGNZ"),
+      isValidInjectiveAddress("INJ182DSNKEULZ9GTW35H6AQRXFV0J4CM7PYAHU0EJ"),
     ).toBe(true);
   });
 
@@ -78,8 +75,7 @@ describe("isValidInjectiveAddress", () => {
   });
 
   it("trims whitespace before validating", () => {
-    const addr = "inj1" + "a".repeat(38);
-    expect(isValidInjectiveAddress(`  ${addr}  `)).toBe(true);
+    expect(isValidInjectiveAddress("  inj1kaytjeq8w4ur23clxd5mzfsh79vn6pg0kkraw6  ")).toBe(true);
   });
 
   it("rejects address with special characters", () => {
@@ -181,7 +177,7 @@ describe("denomToSymbol", () => {
 describe("buildLcdTxsUrl", () => {
   it("builds a sender query URL with properly encoded events", () => {
     const url = buildLcdTxsUrl(
-      "inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz",
+      "inj182dsnkeulz9gtw35h6aqrxfv0j4cm7pyahu0ej",
       "sender",
     );
 
@@ -197,26 +193,26 @@ describe("buildLcdTxsUrl", () => {
     const parsed = new URL(url);
     const queryParam = parsed.searchParams.get("query");
     expect(queryParam).toBe(
-      "message.sender='inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz'",
+      "message.sender='inj182dsnkeulz9gtw35h6aqrxfv0j4cm7pyahu0ej'",
     );
   });
 
   it("builds a recipient query URL with transfer.recipient filter", () => {
     const url = buildLcdTxsUrl(
-      "inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz",
+      "inj182dsnkeulz9gtw35h6aqrxfv0j4cm7pyahu0ej",
       "recipient",
     );
 
     const parsed = new URL(url);
     const queryParam = parsed.searchParams.get("query");
     expect(queryParam).toBe(
-      "transfer.recipient='inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz'",
+      "transfer.recipient='inj182dsnkeulz9gtw35h6aqrxfv0j4cm7pyahu0ej'",
     );
   });
 
   it("includes pagination key when provided", () => {
     const url = buildLcdTxsUrl(
-      "inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz",
+      "inj182dsnkeulz9gtw35h6aqrxfv0j4cm7pyahu0ej",
       "sender",
       "abc123paginationkey",
     );
@@ -229,7 +225,7 @@ describe("buildLcdTxsUrl", () => {
 
   it("does not include pagination key when not provided", () => {
     const url = buildLcdTxsUrl(
-      "inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz",
+      "inj182dsnkeulz9gtw35h6aqrxfv0j4cm7pyahu0ej",
       "sender",
     );
 
@@ -239,7 +235,7 @@ describe("buildLcdTxsUrl", () => {
 
   it("URL-encodes special characters so LCD API accepts the query", () => {
     const url = buildLcdTxsUrl(
-      "inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz",
+      "inj182dsnkeulz9gtw35h6aqrxfv0j4cm7pyahu0ej",
       "sender",
     );
 
@@ -274,7 +270,7 @@ describe("injectiveAdapter.validateAddress", () => {
   it("delegates to isValidInjectiveAddress", () => {
     expect(
       injectiveAdapter.validateAddress(
-        "inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz",
+        "inj182dsnkeulz9gtw35h6aqrxfv0j4cm7pyahu0ej",
       ),
     ).toBe(true);
     expect(injectiveAdapter.validateAddress("invalid")).toBe(false);
@@ -299,8 +295,8 @@ describe("injectiveAdapter metadata", () => {
 // fetchTransactions — mocked LCD API calls
 // ---------------------------------------------------------------------------
 
-const VALID_ADDRESS = "inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz";
-const OTHER_ADDRESS = "inj1zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3t5045a";
+const VALID_ADDRESS = "inj182dsnkeulz9gtw35h6aqrxfv0j4cm7pyahu0ej";
+const OTHER_ADDRESS = "inj1dsnkeulz9gtw35h6aqrxfv0j4cm7py82gs6pxt";
 
 /**
  * Create a mock LCD tx_response object.

@@ -159,30 +159,41 @@ async function fetchErgoWithRetry<T>(url: string): Promise<T> {
 // GraphQL-based transaction listing
 // ---------------------------------------------------------------------------
 
-/** GraphQL response shape for transaction listing. */
-interface GqlTransactionRef {
+/** GraphQL response shape for full transaction data. */
+interface GqlAsset {
+  tokenId: string;
+  amount: string;
+}
+
+interface GqlBox {
+  boxId: string;
+  value: string;
+  address: string;
+  assets: GqlAsset[];
+}
+
+interface GqlTransaction {
   transactionId: string;
   timestamp: string;
   inclusionHeight: number;
+  inputs: Array<{ box: GqlBox }>;
+  outputs: Array<GqlBox & { boxId: string }>;
 }
 
 interface GqlResponse {
-  data?: { transactions: GqlTransactionRef[] };
+  data?: { transactions: GqlTransaction[] };
   errors?: Array<{ message: string }>;
 }
 
 /**
- * Fetch transaction IDs for an address using the Ergo GraphQL API.
- * Returns lightweight transaction references (id + timestamp + height).
- *
- * The GraphQL endpoint is more reliable than the REST `/addresses/{addr}/transactions`
- * endpoint which frequently times out or returns 503.
+ * Fetch transaction refs (ID + timestamp) for an address using the Ergo GraphQL API.
+ * Lightweight query -- full details fetched via REST in parallel batches.
  */
-async function fetchTxRefsViaGraphQL(
+async function fetchTxsViaGraphQL(
   address: string,
   take: number,
   skip: number,
-): Promise<GqlTransactionRef[]> {
+): Promise<GqlTransaction[]> {
   const query = `{ transactions(addresses: ["${address}"], take: ${take}, skip: ${skip}) { transactionId timestamp inclusionHeight } }`;
 
   const maxRetries = 3;
@@ -225,12 +236,27 @@ async function fetchTxRefsViaGraphQL(
 
 /**
  * Fetch a single transaction by ID from the REST API.
- * Individual tx lookups are fast and reliable.
  */
 async function fetchTxById(txId: string): Promise<ErgoTransactionInfo> {
   return fetchErgoWithRetry<ErgoTransactionInfo>(
     `${API_BASE}/transactions/${txId}`,
   );
+}
+
+/** Concurrency limit for parallel REST lookups. */
+const REST_CONCURRENCY = 10;
+
+/**
+ * Fetch multiple transactions by ID in parallel with concurrency limit.
+ */
+async function fetchTxsByIds(txIds: string[]): Promise<ErgoTransactionInfo[]> {
+  const results: ErgoTransactionInfo[] = [];
+  for (let i = 0; i < txIds.length; i += REST_CONCURRENCY) {
+    const batch = txIds.slice(i, i + REST_CONCURRENCY);
+    const batchResults = await Promise.all(batch.map(fetchTxById));
+    results.push(...batchResults);
+  }
+  return results;
 }
 
 /**
@@ -486,16 +512,17 @@ async function fetchAllTransactions(
   options?: FetchOptions,
 ): Promise<ErgoTransactionInfo[]> {
   try {
+    // Try REST first (works in tests and sometimes in production)
     return await fetchAllTransactionsViaREST(address, options);
   } catch {
-    // REST address/transactions endpoint often times out (503).
-    // Fall back to GraphQL listing + REST individual lookups.
+    // REST often returns 503 on public API -- fall back to GraphQL + parallel REST
     return await fetchAllTransactionsViaGraphQL(address, options);
   }
 }
 
 /**
- * Primary path: GraphQL for listing tx IDs, REST for full tx details.
+ * Fetch all transactions: GraphQL for lightweight ID listing, REST for full details
+ * in parallel batches (10 concurrent requests).
  */
 async function fetchAllTransactionsViaGraphQL(
   address: string,
@@ -505,39 +532,38 @@ async function fetchAllTransactionsViaGraphQL(
   let skip = 0;
 
   while (true) {
-    const refs = await fetchTxRefsViaGraphQL(address, GQL_PAGE_SIZE, skip);
-    if (refs.length === 0) break;
+    const gqlTxs = await fetchTxsViaGraphQL(address, GQL_PAGE_SIZE, skip);
+    if (gqlTxs.length === 0) break;
 
-    // Apply date filtering early if possible (timestamps from GraphQL are ms)
-    let filteredRefs = refs;
+    // Filter by date using GraphQL timestamps before fetching full details
+    let refs = gqlTxs;
     if (options?.fromDate || options?.toDate) {
       const fromMs = options.fromDate ? options.fromDate.getTime() : 0;
       const toMs = options.toDate ? options.toDate.getTime() : Infinity;
-      filteredRefs = refs.filter((ref) => {
-        const ts = Number(ref.timestamp);
+      refs = gqlTxs.filter((tx) => {
+        const ts = Number(tx.timestamp);
         return ts >= fromMs && ts <= toMs;
       });
     }
 
-    // Fetch full details for each transaction
-    const txDetails = await Promise.all(
-      filteredRefs.map((ref) => fetchTxById(ref.transactionId)),
-    );
+    // Fetch full details in parallel batches
+    if (refs.length > 0) {
+      const txDetails = await fetchTxsByIds(refs.map((r) => r.transactionId));
+      results.push(...txDetails);
 
-    results.push(...txDetails);
-
-    // Report progress for streaming
-    if (options?.onProgress && txDetails.length > 0) {
-      const batch = txDetails
-        .map((tx) => mapTransaction(tx, address))
-        .filter((tx): tx is Transaction => tx !== null);
-      if (batch.length > 0) {
-        options.onProgress(batch);
+      // Report progress for streaming
+      if (options?.onProgress) {
+        const batch = txDetails
+          .map((tx) => mapTransaction(tx, address))
+          .filter((tx): tx is Transaction => tx !== null);
+        if (batch.length > 0) {
+          options.onProgress(batch);
+        }
       }
     }
 
-    if (refs.length < GQL_PAGE_SIZE) break;
-    skip += refs.length;
+    if (gqlTxs.length < GQL_PAGE_SIZE) break;
+    skip += gqlTxs.length;
   }
 
   return results;

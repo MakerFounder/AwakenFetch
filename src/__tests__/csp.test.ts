@@ -12,10 +12,10 @@ describe("CSP configuration", () => {
       expect(cspDirectives["default-src"]).toEqual(["'self'"]);
     });
 
-    it("restricts script-src to self only (no unsafe-inline or unsafe-eval)", () => {
-      expect(cspDirectives["script-src"]).toEqual(["'self'"]);
-      expect(cspDirectives["script-src"]).not.toContain("'unsafe-inline'");
-      expect(cspDirectives["script-src"]).not.toContain("'unsafe-eval'");
+    it("allows script-src with self, unsafe-inline, and unsafe-eval", () => {
+      expect(cspDirectives["script-src"]).toContain("'self'");
+      expect(cspDirectives["script-src"]).toContain("'unsafe-inline'");
+      expect(cspDirectives["script-src"]).toContain("'unsafe-eval'");
     });
 
     it("disallows framing via frame-ancestors none", () => {

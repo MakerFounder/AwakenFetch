@@ -43,6 +43,44 @@ const PAGE_LIMIT = 50;
  */
 const INJ_ADDRESS_REGEX = /^inj1[a-z0-9]{38}$/;
 
+// Bech32 checksum verification for Cosmos addresses
+const BECH32_CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+const BECH32_GENERATORS = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+
+function bech32Polymod(values: number[]): number {
+  let chk = 1;
+  for (const v of values) {
+    const top = chk >> 25;
+    chk = ((chk & 0x1ffffff) << 5) ^ v;
+    for (let j = 0; j < 5; j++) {
+      chk ^= (top >> j) & 1 ? BECH32_GENERATORS[j] : 0;
+    }
+  }
+  return chk;
+}
+
+function bech32HrpExpand(hrp: string): number[] {
+  const result: number[] = [];
+  for (let i = 0; i < hrp.length; i++) result.push(hrp.charCodeAt(i) >> 5);
+  result.push(0);
+  for (let i = 0; i < hrp.length; i++) result.push(hrp.charCodeAt(i) & 31);
+  return result;
+}
+
+function verifyBech32Checksum(bech: string): boolean {
+  const lower = bech.toLowerCase();
+  const lastOne = lower.lastIndexOf("1");
+  if (lastOne < 1 || lastOne + 7 > lower.length) return false;
+  const hrp = lower.substring(0, lastOne);
+  const data: number[] = [];
+  for (let i = lastOne + 1; i < lower.length; i++) {
+    const d = BECH32_CHARSET.indexOf(lower[i]);
+    if (d < 0) return false;
+    data.push(d);
+  }
+  return bech32Polymod(bech32HrpExpand(hrp).concat(data)) === 1;
+}
+
 /** Known native denom for INJ. */
 const INJ_DENOM = "inj";
 
@@ -227,7 +265,8 @@ export function denomToSymbol(denom: string): string {
 export function isValidInjectiveAddress(address: string): boolean {
   if (typeof address !== "string") return false;
   const trimmed = address.trim().toLowerCase();
-  return INJ_ADDRESS_REGEX.test(trimmed);
+  if (!INJ_ADDRESS_REGEX.test(trimmed)) return false;
+  return verifyBech32Checksum(trimmed);
 }
 
 /**

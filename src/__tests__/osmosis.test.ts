@@ -28,18 +28,16 @@ import type { Transaction } from "@/types";
 describe("isValidOsmosisAddress", () => {
   it("accepts a valid Osmosis address (43 chars, osmo1 prefix)", () => {
     expect(
-      isValidOsmosisAddress("osmo1clpqr4nrk4khgkxj78fcwwh6dl3uw4ep88n0y4"),
+      isValidOsmosisAddress("osmo19gtw35h6aqrxfv0j4cm7py82dsnkeulzh27uqg"),
     ).toBe(true);
   });
 
   it("accepts another valid address", () => {
-    const addr = "osmo1" + "a".repeat(38);
-    expect(isValidOsmosisAddress(addr)).toBe(true);
+    expect(isValidOsmosisAddress("osmo15mzfsh79vn6pg0kaytjeq8w4ur23clxdj45dpe")).toBe(true);
   });
 
   it("accepts address with digits after prefix", () => {
-    const addr = "osmo1" + "abc123def456abc123def456abc123def456ab";
-    expect(isValidOsmosisAddress(addr)).toBe(true);
+    expect(isValidOsmosisAddress("osmo19vn6pg0kaytjeq8w4ur23clxd5mzfsh7kjpeje")).toBe(true);
   });
 
   it("rejects an address without osmo1 prefix", () => {
@@ -68,8 +66,7 @@ describe("isValidOsmosisAddress", () => {
   });
 
   it("trims whitespace before validating", () => {
-    const addr = "osmo1" + "a".repeat(38);
-    expect(isValidOsmosisAddress(`  ${addr}  `)).toBe(true);
+    expect(isValidOsmosisAddress("  osmo1kaytjeq8w4ur23clxd5mzfsh79vn6pg05y8f2s  ")).toBe(true);
   });
 
   it("rejects address with special characters", () => {
@@ -83,7 +80,7 @@ describe("isValidOsmosisAddress", () => {
 
   it("rejects uppercase address (bech32 is lowercase)", () => {
     expect(
-      isValidOsmosisAddress("OSMO1CLPQR4NRK4KHGKXJ78FCWWH6DL3UW4EP88N0Y4"),
+      isValidOsmosisAddress("OSMO19GTW35H6AQRXFV0J4CM7PY82DSNKEULZH27UQG"),
     ).toBe(true); // lowercased during validation
   });
 });
@@ -198,7 +195,7 @@ describe("osmosisAdapter.validateAddress", () => {
   it("delegates to isValidOsmosisAddress", () => {
     expect(
       osmosisAdapter.validateAddress(
-        "osmo1clpqr4nrk4khgkxj78fcwwh6dl3uw4ep88n0y4",
+        "osmo19gtw35h6aqrxfv0j4cm7py82dsnkeulzh27uqg",
       ),
     ).toBe(true);
     expect(osmosisAdapter.validateAddress("invalid")).toBe(false);
@@ -223,8 +220,8 @@ describe("osmosisAdapter metadata", () => {
 // fetchTransactions — mocked API calls
 // ---------------------------------------------------------------------------
 
-const VALID_ADDRESS = "osmo1clpqr4nrk4khgkxj78fcwwh6dl3uw4ep88n0y4";
-const OTHER_ADDRESS = "osmo1zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3t5nde2";
+const VALID_ADDRESS = "osmo19gtw35h6aqrxfv0j4cm7py82dsnkeulzh27uqg";
+const OTHER_ADDRESS = "osmo1tw35h6aqrxfv0j4cm7py82dsnkeulz9ghukehn";
 
 function makeMockTxResponse(
   overrides: Partial<{

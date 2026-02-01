@@ -127,7 +127,7 @@ describe("validateAddress — injective", () => {
 
   it("accepts a valid Injective address", () => {
     const result = validateAddress(
-      "inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz",
+      "inj182dsnkeulz9gtw35h6aqrxfv0j4cm7pyahu0ej",
       chain,
     );
     expect(result.valid).toBe(true);
@@ -151,7 +151,7 @@ describe("validateAddress — injective", () => {
 
   it("rejects an address that is too long", () => {
     const result = validateAddress(
-      "inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnzextra",
+      "inj182dsnkeulz9gtw35h6aqrxfv0j4cm7pyahu0ejextra",
       chain,
     );
     expect(result.valid).toBe(false);
@@ -185,7 +185,7 @@ describe("validateAddress — edge cases", () => {
 
   it("trims the address before validation", () => {
     const result = validateAddress(
-      "   inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz   ",
+      "   inj182dsnkeulz9gtw35h6aqrxfv0j4cm7pyahu0ej   ",
       "injective",
     );
     expect(result.valid).toBe(true);

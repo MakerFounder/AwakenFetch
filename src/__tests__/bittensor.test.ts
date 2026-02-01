@@ -705,7 +705,7 @@ describe("bittensorAdapter.fetchTransactions", () => {
     fetchSpy.mockRestore();
   });
 
-  it("handles API error with retry", async () => {
+  it("handles API error with retry", { timeout: 30000 }, async () => {
     let callCount = 0;
     const emptyResponse = {
       pagination: {

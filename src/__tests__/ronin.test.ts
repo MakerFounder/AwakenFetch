@@ -74,7 +74,7 @@ describe("isValidRoninAddress", () => {
 
   it("rejects Osmosis-style bech32 addresses", () => {
     expect(
-      isValidRoninAddress("osmo1clpqr4nrk4khgkxj78fcwwh6dl3uw4ep88n0y4"),
+      isValidRoninAddress("osmo19gtw35h6aqrxfv0j4cm7py82dsnkeulzh27uqg"),
     ).toBe(false);
   });
 
