@@ -589,11 +589,20 @@ async function fetchAllTransactionsViaREST(
       options.onEstimatedTotal(data.total);
     }
 
-    results.push(...data.items);
+    // Apply date filtering before accumulating results and reporting progress
+    const fromMs = options?.fromDate ? options.fromDate.getTime() : 0;
+    const toMs = options?.toDate ? options.toDate.getTime() : Infinity;
+
+    const filteredItems = data.items.filter((tx) => {
+      const txTime = tx.timestamp;
+      return txTime >= fromMs && txTime <= toMs;
+    });
+
+    results.push(...filteredItems);
 
     // Report progress for streaming
-    if (options?.onProgress && data.items.length > 0) {
-      const batch = data.items
+    if (options?.onProgress && filteredItems.length > 0) {
+      const batch = filteredItems
         .map((tx) => mapTransaction(tx, address))
         .filter((tx): tx is Transaction => tx !== null);
       if (batch.length > 0) {
@@ -606,17 +615,6 @@ async function fetchAllTransactionsViaREST(
     }
 
     offset += data.items.length;
-  }
-
-  // Apply date filtering if provided
-  if (options?.fromDate || options?.toDate) {
-    const fromMs = options.fromDate ? options.fromDate.getTime() : 0;
-    const toMs = options.toDate ? options.toDate.getTime() : Infinity;
-
-    return results.filter((tx) => {
-      const txTime = tx.timestamp;
-      return txTime >= fromMs && txTime <= toMs;
-    });
   }
 
   return results;
