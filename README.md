@@ -1,4 +1,8 @@
-# AwakenFetch
+<p align="center">
+  <img src="public/icon.svg" alt="AwakenFetch" width="120" />
+</p>
+
+<h1 align="center">AwakenFetch</h1>
 
 A web application that fetches cryptocurrency transaction history from blockchain explorers and exports Awaken Tax-compatible CSV files. Built for chains and protocols not natively supported by Awaken Tax.
 
