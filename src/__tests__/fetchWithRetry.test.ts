@@ -122,20 +122,27 @@ describe("fetchWithRetry", () => {
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 
-  it("throws after max retries exhausted on 429", async () => {
-    mockFetch
-      .mockResolvedValueOnce(mockResponse({}, 429, "Too Many Requests"))
-      .mockResolvedValueOnce(mockResponse({}, 429, "Too Many Requests"))
-      .mockResolvedValueOnce(mockResponse({}, 429, "Too Many Requests"));
+  it("throws after max rate-limit retries exhausted on 429", async () => {
+    const originalSetTimeout = globalThis.setTimeout;
+    vi.spyOn(globalThis, "setTimeout").mockImplementation(
+      ((fn: () => void) => {
+        return originalSetTimeout(fn, 0);
+      }) as typeof setTimeout,
+    );
+
+    // 429s are retried up to 10 times independently of error retries
+    for (let i = 0; i < 12; i++) {
+      mockFetch.mockResolvedValueOnce(mockResponse({}, 429, "Too Many Requests"));
+    }
 
     await expect(
       fetchWithRetry("https://api.example.com/data", {
         maxRetries: 3,
         baseDelayMs: 1,
       }),
-    ).rejects.toThrow("API request failed after retries");
+    ).rejects.toThrow("rate limit exceeded");
 
-    expect(mockFetch).toHaveBeenCalledTimes(3);
+    expect(mockFetch).toHaveBeenCalledTimes(11);
   });
 
   it("throws after max retries exhausted on network errors", async () => {
@@ -178,8 +185,8 @@ describe("fetchWithRetry", () => {
 
     expect(result).toEqual({ success: true });
     expect(mockFetch).toHaveBeenCalledTimes(3);
-    // Backoff delays: 1000 * 2^0 = 1000, 1000 * 2^1 = 2000
-    expect(sleepCalls).toEqual([1000, 2000]);
+    // Rate-limit backoff uses dedicated constants: 500 * 2^0 = 500, 500 * 2^1 = 1000
+    expect(sleepCalls).toEqual([500, 1000]);
   });
 
   it("retries on non-429 HTTP errors", async () => {

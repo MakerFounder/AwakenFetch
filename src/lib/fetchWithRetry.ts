@@ -39,6 +39,15 @@ const DEFAULT_MAX_RETRIES = 3;
 /** Default base delay (ms) for exponential backoff. */
 const DEFAULT_BASE_DELAY_MS = 1_000;
 
+/** Maximum number of 429 rate-limit retries (separate from error retries). */
+const DEFAULT_MAX_RATE_LIMIT_RETRIES = 10;
+
+/** Base delay (ms) for rate-limit backoff — intentionally short since APIs typically need only a brief cooldown. */
+const RATE_LIMIT_BASE_DELAY_MS = 500;
+
+/** Maximum rate-limit backoff delay (ms) to keep UX responsive. */
+const RATE_LIMIT_MAX_DELAY_MS = 5_000;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -80,6 +89,7 @@ export async function fetchWithRetry<T>(
   };
 
   let lastError: Error | null = null;
+  let rateLimitRetries = 0;
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
@@ -90,9 +100,21 @@ export async function fetchWithRetry<T>(
       const response = await fetch(url, fetchInit);
 
       if (response.status === 429) {
-        // Rate limited — back off and retry
-        const delay = baseDelayMs * Math.pow(2, attempt);
+        rateLimitRetries++;
+        if (rateLimitRetries > DEFAULT_MAX_RATE_LIMIT_RETRIES) {
+          throw new RateLimitExceededError(
+            `${errorLabel} rate limit exceeded after ${rateLimitRetries} retries`,
+          );
+        }
+        const retryAfter = response.headers.get("Retry-After");
+        const delay = retryAfter && !Number.isNaN(Number(retryAfter))
+          ? Math.min(Number(retryAfter) * 1_000, RATE_LIMIT_MAX_DELAY_MS)
+          : Math.min(
+              RATE_LIMIT_BASE_DELAY_MS * Math.pow(2, rateLimitRetries - 1),
+              RATE_LIMIT_MAX_DELAY_MS,
+            );
         await sleep(delay);
+        attempt--;
         continue;
       }
 
@@ -104,6 +126,9 @@ export async function fetchWithRetry<T>(
 
       return (await response.json()) as T;
     } catch (error) {
+      if (error instanceof RateLimitExceededError) {
+        throw error;
+      }
       lastError = error instanceof Error ? error : new Error(String(error));
       if (attempt < maxRetries - 1) {
         const delay = baseDelayMs * Math.pow(2, attempt);
@@ -113,4 +138,11 @@ export async function fetchWithRetry<T>(
   }
 
   throw lastError ?? new Error(`${errorLabel} request failed after retries`);
+}
+
+class RateLimitExceededError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RateLimitExceededError";
+  }
 }
