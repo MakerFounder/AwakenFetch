@@ -143,7 +143,14 @@ export function isValidBittensorAddress(address: string): boolean {
 }
 
 /**
- * Fetch JSON from Taostats with exponential backoff retry.
+ * Minimum interval (ms) between Taostats API requests.
+ * The API allows ~3 req/s but has a harsh ~20s cooldown on 429,
+ * so proactive pacing at ~1 req/500ms avoids the penalty entirely.
+ */
+const TAOSTATS_THROTTLE_MS = 500;
+
+/**
+ * Fetch JSON from Taostats with proactive throttling and retry.
  */
 async function fetchTaostatsWithRetry<T>(url: string, apiKey: string): Promise<T> {
   return fetchWithRetry<T>(url, {
@@ -151,6 +158,8 @@ async function fetchTaostatsWithRetry<T>(url: string, apiKey: string): Promise<T
     errorLabel: "Taostats API",
     maxRetries: 5,
     baseDelayMs: 2_000,
+    throttleKey: "taostats",
+    throttleMs: TAOSTATS_THROTTLE_MS,
   });
 }
 

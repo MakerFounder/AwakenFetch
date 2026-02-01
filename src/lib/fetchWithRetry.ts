@@ -27,6 +27,14 @@ export interface FetchWithRetryOptions {
   method?: string;
   /** Request body (for POST/PUT requests). */
   body?: string;
+  /**
+   * Optional throttle key (typically the API host). When set, requests sharing
+   * the same key are spaced at least `throttleMs` apart to proactively avoid
+   * rate limits — much faster than hitting 429 and waiting for a cooldown.
+   */
+  throttleKey?: string;
+  /** Minimum interval (ms) between requests sharing the same throttleKey. */
+  throttleMs?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -42,11 +50,11 @@ const DEFAULT_BASE_DELAY_MS = 1_000;
 /** Maximum number of 429 rate-limit retries (separate from error retries). */
 const DEFAULT_MAX_RATE_LIMIT_RETRIES = 10;
 
-/** Base delay (ms) for rate-limit backoff — intentionally short since APIs typically need only a brief cooldown. */
+/** Base delay (ms) for rate-limit backoff — a safety net when proactive throttling misses. */
 const RATE_LIMIT_BASE_DELAY_MS = 500;
 
-/** Maximum rate-limit backoff delay (ms) to keep UX responsive. */
-const RATE_LIMIT_MAX_DELAY_MS = 5_000;
+/** Maximum rate-limit backoff delay (ms). */
+const RATE_LIMIT_MAX_DELAY_MS = 8_000;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -62,6 +70,9 @@ export function sleep(ms: number): Promise<void> {
 // ---------------------------------------------------------------------------
 // fetchWithRetry
 // ---------------------------------------------------------------------------
+
+/** Tracks the last request timestamp per throttle key. */
+const throttleTimestamps = new Map<string, number>();
 
 /**
  * Fetch JSON from a URL with exponential backoff retry on rate limits and errors.
@@ -88,6 +99,15 @@ export async function fetchWithRetry<T>(
     ...options?.headers,
   };
 
+  // Proactive throttle: wait if we're calling this host too fast
+  if (options?.throttleKey && options.throttleMs) {
+    const lastCall = throttleTimestamps.get(options.throttleKey) ?? 0;
+    const elapsed = Date.now() - lastCall;
+    if (elapsed < options.throttleMs) {
+      await sleep(options.throttleMs - elapsed);
+    }
+  }
+
   let lastError: Error | null = null;
   let rateLimitRetries = 0;
 
@@ -97,6 +117,11 @@ export async function fetchWithRetry<T>(
       if (options?.body) {
         fetchInit.body = options.body;
       }
+
+      if (options?.throttleKey) {
+        throttleTimestamps.set(options.throttleKey, Date.now());
+      }
+
       const response = await fetch(url, fetchInit);
 
       if (response.status === 429) {
