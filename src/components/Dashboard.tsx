@@ -115,7 +115,7 @@ export function Dashboard({ chains }: DashboardProps) {
   const showResults = !isFetching && transactions.length > 0 && activeChainId;
 
   return (
-    <div className="flex w-full flex-col min-h-screen">
+    <div className="flex w-full flex-col sm:min-h-screen overflow-x-hidden">
       {/* Header */}
       <header className="sticky top-0 z-40 flex justify-center px-4 pt-4">
         <nav className="flex items-center gap-8 rounded-full border border-border/40 bg-background/80 backdrop-blur-md px-7 py-2.5">
@@ -158,7 +158,7 @@ export function Dashboard({ chains }: DashboardProps) {
       </header>
 
       {/* Hero + Form Section */}
-      <section className="relative">
+      <section className="relative overflow-hidden">
         {/* Soft radial glow behind hero — no hard gradient band */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-accent/[0.03] rounded-full blur-[120px] pointer-events-none" />
 
@@ -216,7 +216,7 @@ export function Dashboard({ chains }: DashboardProps) {
       </section>
 
       {/* Results Section */}
-      <section className="flex-1">
+      <section className="sm:flex-1">
         <div className="mx-auto max-w-7xl px-6 py-8">
           {isFetching && (
             <TransactionTableSkeleton />
@@ -258,15 +258,15 @@ export function Dashboard({ chains }: DashboardProps) {
       </section>
 
       {/* Minimal footer */}
-      <footer className="mt-auto border-t border-border/40">
-        <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between text-xs text-muted">
+      <footer className="sm:mt-auto border-t border-border/40">
+        <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between text-xs text-muted max-sm:flex-col max-sm:items-center max-sm:gap-2 max-sm:py-3">
           <div className="flex items-center gap-2">
             <div className="flex h-4 w-4 items-center justify-center rounded bg-accent/80">
               <svg width="10" height="10" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                 <path d="M8 2v8m0 0L5 7m3 3l3-3M3 12h10" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <span><span className="text-foreground/70 font-medium">AwakenFetch</span> — Awaken Tax-compliant CSV exports</span>
+            <span><span className="text-foreground/70 font-medium">AwakenFetch</span> <span className="hidden sm:inline">— Awaken Tax-compliant CSV exports</span></span>
           </div>
           <a
             href="https://awaken.tax"

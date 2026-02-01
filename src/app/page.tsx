@@ -5,7 +5,7 @@ export default function Home() {
   const chains = getAvailableChains();
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-start">
+    <main className="flex sm:min-h-screen flex-col items-center justify-start">
       <Dashboard chains={chains} />
     </main>
   );

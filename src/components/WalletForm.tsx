@@ -119,7 +119,7 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched, onLoadingC
       {/* Inline form bar */}
       <div className="relative flex flex-col sm:flex-row sm:items-stretch rounded-2xl border border-border bg-background shadow-sm transition-all hover:border-border-hover hover:shadow-md">
         {/* Chain selector segment */}
-        <div className="border-b sm:border-b-0 sm:border-r border-border flex items-center">
+        <div className="border-b sm:border-b-0 sm:border-r border-border flex items-center max-sm:justify-center">
           <ChainSelector
             chains={enabledChains}
             selectedChainId={selectedChainId}
@@ -144,7 +144,7 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched, onLoadingC
             disabled={isLoading}
             aria-invalid={!!addressError}
             aria-describedby={addressError ? "address-error" : undefined}
-            className="w-full bg-transparent px-4 py-3 text-sm text-foreground placeholder:text-muted/50 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full bg-transparent px-4 py-3 text-sm text-foreground placeholder:text-muted/50 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 max-sm:text-center max-sm:placeholder:text-center"
           />
         </div>
 
