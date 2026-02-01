@@ -383,6 +383,19 @@ async function fetchAllTransactions(
     params.set("before", String(Math.floor(options.toDate.getTime() / 1000)));
   }
 
+  // Fetch estimated total for progress reporting
+  if (options?.onEstimatedTotal) {
+    try {
+      const countUrl = `${API_BASE}/accounts/${address}/transactions/count?${params.toString()}`;
+      const total = await fetchMultiversXWithRetry<number>(countUrl);
+      if (typeof total === "number" && total > 0) {
+        options.onEstimatedTotal(total);
+      }
+    } catch {
+      // Non-critical — proceed without total estimate
+    }
+  }
+
   while (true) {
     params.set("from", String(offset));
 

@@ -285,6 +285,10 @@ async function fetchAllTransfers(
       break;
     }
 
+    if (page === 0 && options?.onEstimatedTotal && data.data.count > 0) {
+      options.onEstimatedTotal(data.data.count);
+    }
+
     const batchStart = results.length;
 
     for (const tx of data.data.transfers) {

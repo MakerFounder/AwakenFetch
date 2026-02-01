@@ -585,6 +585,10 @@ async function fetchAllTransactionsViaREST(
 
     if (!data.items || data.items.length === 0) break;
 
+    if (offset === 0 && options?.onEstimatedTotal && data.total > 0) {
+      options.onEstimatedTotal(data.total);
+    }
+
     results.push(...data.items);
 
     // Report progress for streaming

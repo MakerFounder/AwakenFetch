@@ -289,6 +289,20 @@ async function fetchAllTransactions(
   const results: KaspaTransaction[] = [];
   let offset = 0;
 
+  // Fetch estimated total for progress reporting
+  if (options?.onEstimatedTotal) {
+    try {
+      const countData = await fetchKaspaWithRetry<{ total: number }>(
+        `${API_BASE}/addresses/${address}/transactions-count`,
+      );
+      if (countData.total > 0) {
+        options.onEstimatedTotal(countData.total);
+      }
+    } catch {
+      // Non-critical — proceed without total estimate
+    }
+  }
+
   while (true) {
     const url = `${API_BASE}/addresses/${address}/full-transactions?limit=${PAGE_LIMIT}&offset=${offset}&resolve_previous_outpoints=light`;
     const data = await fetchKaspaWithRetry<KaspaTransaction[]>(url);
