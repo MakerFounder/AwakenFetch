@@ -145,9 +145,10 @@ export function isValidBittensorAddress(address: string): boolean {
 /**
  * Minimum interval (ms) between Taostats API requests.
  * The API allows ~3 req/s but has a harsh ~20s cooldown on 429,
- * so proactive pacing at ~1 req/500ms avoids the penalty entirely.
+ * so proactive pacing at ~1 req/370ms avoids the penalty while
+ * improving performance over the conservative 500ms setting.
  */
-const TAOSTATS_THROTTLE_MS = 500;
+const TAOSTATS_THROTTLE_MS = 370;
 
 /**
  * Fetch JSON from Taostats with proactive throttling and retry.
