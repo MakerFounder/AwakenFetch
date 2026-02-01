@@ -82,7 +82,7 @@ export function ChainHelpModal({ open, onClose }: ChainHelpModalProps) {
     >
       <div className="flex flex-col gap-4 p-6">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg text-foreground">
+          <h2 className="text-lg font-semibold text-foreground">
             Finding Your Wallet Address
           </h2>
           <button

@@ -56,7 +56,7 @@ export function DuplicateExportWarning({
           </svg>
           <h2
             id="duplicate-export-title"
-            className="font-display text-base text-foreground"
+            className="text-base font-semibold text-foreground"
           >
             Duplicate Export Warning
           </h2>

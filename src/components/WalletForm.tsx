@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import type { ChainInfo } from "@/types";
 import {
   validateAddress,
@@ -17,17 +17,13 @@ import {
 import { ChainSelector } from "@/components/ChainSelector";
 
 export interface WalletFormProps {
-  /** Available chains to display in the selector. */
   chains: ChainInfo[];
-  /** Called when the user submits the form with a valid address and chain. */
   onSubmit?: (address: string, chainId: string) => void;
-  /** Called when transactions are successfully fetched. */
   onTransactionsFetched?: (
     transactions: import("@/types").Transaction[],
     chainId: string,
     dateRange: DateRange,
   ) => void;
-  /** Called when the fetch loading state changes. */
   onLoadingChange?: (isLoading: boolean) => void;
 }
 
@@ -38,15 +34,15 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched, onLoadingC
   const [touched, setTouched] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange>(getPreviousYearRange);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filtersRef = useRef<HTMLDivElement>(null);
 
   const fetchState = useFetchTransactions();
 
-  // Notify parent when loading state changes
   useEffect(() => {
     onLoadingChange?.(fetchState.status === "loading" || fetchState.status === "streaming");
   }, [fetchState.status, onLoadingChange]);
 
-  // Notify parent when transactions are fetched successfully
   useEffect(() => {
     if (
       fetchState.status === "success" &&
@@ -118,125 +114,135 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched, onLoadingC
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex w-full flex-col gap-5"
+      className="flex w-full flex-col gap-4"
     >
-      {/* Chain selector */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-1.5">
-          <label
-            htmlFor="chain-select"
-            className="text-sm font-medium text-foreground/80"
-          >
-            Chain
-          </label>
+      {/* Inline form bar */}
+      <div className="relative flex flex-col sm:flex-row sm:items-stretch rounded-2xl border border-border bg-background shadow-sm transition-all hover:border-border-hover hover:shadow-md">
+        {/* Chain selector segment */}
+        <div className="border-b sm:border-b-0 sm:border-r border-border flex items-center">
+          <ChainSelector
+            chains={enabledChains}
+            selectedChainId={selectedChainId}
+            onChainChange={handleChainChange}
+            disabled={isLoading}
+            variant="inline"
+          />
+        </div>
+
+        {/* Address input segment */}
+        <div className="flex-1 flex items-center min-w-0">
+          <input
+            id="wallet-address"
+            aria-label="Wallet Address"
+            type="text"
+            value={address}
+            onChange={handleAddressChange}
+            onBlur={handleAddressBlur}
+            placeholder={placeholder}
+            autoComplete="off"
+            spellCheck={false}
+            disabled={isLoading}
+            aria-invalid={!!addressError}
+            aria-describedby={addressError ? "address-error" : undefined}
+            className="w-full bg-transparent px-4 py-3 text-sm text-foreground placeholder:text-muted/50 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          />
+        </div>
+
+        {/* Fetch button segment */}
+        <div className="p-1.5 sm:p-2 flex items-center">
           <button
-            type="button"
-            onClick={() => setHelpOpen(true)}
-            aria-label="How to find your wallet address"
-            title="How to find your wallet address"
-            className="cursor-pointer rounded-full text-muted transition-colors hover:text-accent"
+            type="submit"
+            disabled={!isFormValid || isLoading}
+            className="cursor-pointer rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-accent-hover hover:shadow-md active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100 whitespace-nowrap w-full sm:w-auto flex items-center justify-center gap-2"
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
-              <text
-                x="8"
-                y="11.5"
-                textAnchor="middle"
-                fill="currentColor"
-                fontSize="10"
-                fontWeight="600"
-                fontFamily="system-ui, sans-serif"
-              >
-                ?
-              </text>
-            </svg>
+            {isLoading ? (
+              <>
+                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray="31.4 31.4" strokeDashoffset="10" />
+                </svg>
+                Fetching...
+              </>
+            ) : (
+              <>
+                Fetch
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M3 8h10m0 0L9 4m4 4L9 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </>
+            )}
           </button>
         </div>
-        <ChainSelector
-          chains={enabledChains}
-          selectedChainId={selectedChainId}
-          onChainChange={handleChainChange}
-          disabled={isLoading}
-        />
       </div>
 
-      {/* Wallet address input */}
-      <div className="flex flex-col gap-2">
-        <label
-          htmlFor="wallet-address"
-          className="text-sm font-medium text-foreground/80"
+      {/* Address error */}
+      {addressError && (
+        <p
+          id="address-error"
+          role="alert"
+          className="text-xs text-error flex items-center gap-1 -mt-2 ml-1"
         >
-          Wallet Address
-        </label>
-        <input
-          id="wallet-address"
-          type="text"
-          value={address}
-          onChange={handleAddressChange}
-          onBlur={handleAddressBlur}
-          placeholder={placeholder}
-          autoComplete="off"
-          spellCheck={false}
-          disabled={isLoading}
-          aria-invalid={!!addressError}
-          aria-describedby={addressError ? "address-error" : undefined}
-          className={`rounded-xl border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted/60 transition-all hover:border-border-hover focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 ${
-            addressError
-              ? "border-error focus:border-error focus:ring-error/20"
-              : "border-border focus:border-accent focus:ring-accent/20"
-          }`}
-        />
-        {addressError && (
-          <p
-            id="address-error"
-            role="alert"
-            className="text-xs text-error flex items-center gap-1"
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M6 3.5v3M6 8v.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          </svg>
+          {addressError}
+        </p>
+      )}
+
+      {/* Filters toggle + help */}
+      <div className="flex items-center justify-center gap-4">
+        <button
+          type="button"
+          onClick={() => setFiltersOpen(!filtersOpen)}
+          className="cursor-pointer flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors"
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          <span>Filters</span>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 16 16"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className={`transition-transform duration-200 ${filtersOpen ? "rotate-180" : ""}`}
+            aria-hidden="true"
           >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2" />
-              <path d="M6 3.5v3M6 8v.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-            </svg>
-            {addressError}
-          </p>
-        )}
+            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+
+        <span className="text-border">|</span>
+
+        <button
+          type="button"
+          onClick={() => setHelpOpen(true)}
+          aria-label="How to find your wallet address"
+          title="How to find your wallet address"
+          className="cursor-pointer flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors"
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+            <text x="8" y="11.5" textAnchor="middle" fill="currentColor" fontSize="10" fontWeight="600" fontFamily="system-ui, sans-serif">?</text>
+          </svg>
+          <span>Help</span>
+        </button>
       </div>
 
-      {/* Date range filter */}
-      <DateRangeFilter
-        value={dateRange}
-        onChange={setDateRange}
-        disabled={isLoading}
-      />
-
-      {/* Submit button */}
-      <button
-        type="submit"
-        disabled={!isFormValid || isLoading}
-        className="cursor-pointer rounded-xl bg-accent px-4 py-3.5 text-sm font-semibold text-white transition-all hover:bg-accent-hover hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
+      {/* Collapsible filter panel */}
+      <div
+        ref={filtersRef}
+        className={`overflow-hidden transition-all duration-300 ease-in-out ${filtersOpen ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}`}
       >
-        {isLoading ? (
-          <span className="flex items-center justify-center gap-2">
-            <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray="31.4 31.4" strokeDashoffset="10" />
-            </svg>
-            Fetching...
-          </span>
-        ) : (
-          <span className="flex items-center justify-center gap-2">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <path d="M8 2v8m0 0L5 7m3 3l3-3M3 12h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Fetch Transactions
-          </span>
-        )}
-      </button>
+        <div className="rounded-xl border border-border bg-surface/30 p-4">
+          <DateRangeFilter
+            value={dateRange}
+            onChange={setDateRange}
+            disabled={isLoading}
+          />
+        </div>
+      </div>
 
       {/* Fetch progress / status */}
       <FetchStatus

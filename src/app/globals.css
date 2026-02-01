@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=swap');
 
 @import "tailwindcss";
 
@@ -32,9 +32,8 @@
   --color-warning: var(--warning);
   --color-error: var(--error);
   --color-link: var(--link);
-  --font-sans: 'DM Sans', var(--font-geist-sans), system-ui, sans-serif;
+  --font-sans: 'Inter', var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
-  --font-display: 'DM Serif Display', Georgia, serif;
 }
 
 @media (prefers-color-scheme: dark) {

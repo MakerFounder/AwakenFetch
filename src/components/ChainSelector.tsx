@@ -30,15 +30,15 @@ function ChainIcon({ chainId, chainName }: { chainId: string; chainName: string 
     );
 }
 
-
 export interface ChainSelectorProps {
     chains: ChainInfo[];
     selectedChainId: string;
     onChainChange: (chainId: string) => void;
     disabled?: boolean;
+    variant?: "default" | "inline";
 }
 
-export function ChainSelector({ chains, selectedChainId, onChainChange, disabled }: ChainSelectorProps) {
+export function ChainSelector({ chains, selectedChainId, onChainChange, disabled, variant = "default" }: ChainSelectorProps) {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -54,39 +54,62 @@ export function ChainSelector({ chains, selectedChainId, onChainChange, disabled
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [containerRef]);
 
+    const isInline = variant === "inline";
+
     return (
         <div className="relative" ref={containerRef}>
+            {/* Hidden native select for accessibility / test compat */}
+            <select
+                id="chain-select"
+                aria-label="Chain"
+                value={selectedChainId}
+                onChange={(e) => onChainChange(e.target.value)}
+                disabled={disabled}
+                className="sr-only"
+                tabIndex={-1}
+            >
+                <option value="">Select a chain...</option>
+                {chains.map(chain => (
+                    <option key={chain.chainId} value={chain.chainId}>
+                        {chain.chainName}
+                    </option>
+                ))}
+            </select>
+
             <button
                 type="button"
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => !disabled && setIsOpen(!isOpen)}
                 disabled={disabled}
-                className="cursor-pointer rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground transition-all hover:border-border-hover focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 w-full flex items-center justify-between"
+                className={
+                    isInline
+                        ? "cursor-pointer flex items-center gap-2 px-4 py-3 text-sm text-foreground transition-colors hover:bg-surface/60 disabled:cursor-not-allowed disabled:opacity-50"
+                        : "cursor-pointer rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground transition-all hover:border-border-hover focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 w-full flex items-center justify-between"
+                }
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
             >
                 {selectedChain ? (
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2">
                         <ChainIcon chainId={selectedChain.chainId} chainName={selectedChain.chainName} />
-                        <span>{selectedChain.chainName}</span>
-                        <span className="text-muted text-xs">({selectedChain.ticker})</span>
+                        <span className="font-medium whitespace-nowrap">{selectedChain.chainName}</span>
                     </div>
                 ) : (
-                    <span>Select a chain...</span>
+                    <span className="text-muted/60 whitespace-nowrap">Select chain</span>
                 )}
                 <svg
-                    width="16"
-                    height="16"
+                    width="14"
+                    height="14"
                     viewBox="0 0 16 16"
                     fill="none"
                     xmlns="http://www.w3.org/2000/svg"
-                    className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                    className={`ml-1 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                     aria-hidden="true"
                 >
                     <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
             </button>
             {isOpen && (
-                <div className="absolute z-10 mt-1 w-full rounded-xl border border-border bg-background shadow-lg max-h-60 overflow-auto">
+                <div className={`absolute z-50 mt-1 rounded-xl border border-border bg-background shadow-lg max-h-60 overflow-auto ${isInline ? "left-0 min-w-[220px]" : "w-full"}`}>
                     <ul role="listbox">
                         {chains.map(chain => (
                             <li
@@ -95,7 +118,7 @@ export function ChainSelector({ chains, selectedChainId, onChainChange, disabled
                                     onChainChange(chain.chainId);
                                     setIsOpen(false);
                                 }}
-                                className="cursor-pointer p-3 hover:bg-surface flex items-center gap-2.5"
+                                className="cursor-pointer p-3 hover:bg-surface flex items-center gap-2.5 transition-colors"
                                 role="option"
                                 aria-selected={selectedChainId === chain.chainId}
                             >

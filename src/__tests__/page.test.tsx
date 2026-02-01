@@ -29,7 +29,7 @@ describe("Home Page", () => {
       within(container).getByLabelText("Wallet Address"),
     ).toBeInTheDocument();
     expect(
-      within(container).getByRole("button", { name: /fetch transactions/i }),
+      within(container).getByRole("button", { name: /fetch/i }),
     ).toBeInTheDocument();
   });
 
