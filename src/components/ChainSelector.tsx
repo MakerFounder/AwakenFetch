@@ -82,7 +82,7 @@ export function ChainSelector({ chains, selectedChainId, onChainChange, disabled
                 disabled={disabled}
                 className={
                     isInline
-                        ? "cursor-pointer flex items-center gap-2 px-4 py-3 text-sm text-foreground transition-colors hover:bg-surface/60 disabled:cursor-not-allowed disabled:opacity-50"
+                        ? "cursor-pointer flex items-center gap-2 px-4 py-3 text-sm text-foreground transition-colors hover:bg-surface/60 rounded-t-2xl sm:rounded-t-none sm:rounded-l-2xl disabled:cursor-not-allowed disabled:opacity-50"
                         : "cursor-pointer rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground transition-all hover:border-border-hover focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 w-full flex items-center justify-between"
                 }
                 aria-haspopup="listbox"
