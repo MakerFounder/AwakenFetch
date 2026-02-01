@@ -55,18 +55,21 @@ export function Dashboard({ chains }: DashboardProps) {
   const [typeFilter, setTypeFilter] = useState<TransactionType | "" | "needs_review">("");
   const [isFetching, setIsFetching] = useState(false);
 
-  const handleTransactionsFetched = (
-    txs: Transaction[],
-    chainId: string,
-    dateRange?: DateRange,
-  ) => {
-    setTransactions(txs);
-    setActiveChainId(chainId);
-    setTypeFilter("");
-    if (dateRange) {
-      setActiveDateRange(dateRange);
-    }
-  };
+  const handleTransactionsFetched = useCallback(
+    (
+      txs: Transaction[],
+      chainId: string,
+      dateRange?: DateRange,
+    ) => {
+      setTransactions(txs);
+      setActiveChainId(chainId);
+      setTypeFilter("");
+      if (dateRange) {
+        setActiveDateRange(dateRange);
+      }
+    },
+    [],
+  );
 
   const handleFormSubmit = useCallback(
     (address: string) => {
