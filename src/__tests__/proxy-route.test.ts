@@ -39,7 +39,8 @@ vi.mock("@/lib/adapters", () => ({
     if (
       chainId === "kaspa" ||
       chainId === "bittensor" ||
-      chainId === "injective"
+      chainId === "injective" ||
+      chainId === "osmosis"
     ) {
       return mockAdapter;
     }
@@ -239,6 +240,15 @@ describe("GET /api/proxy/[chain]", () => {
       "/api/proxy/injective?address=kaspa:qr0dummyaddr123",
     );
     const res = await GET(req, createParams("injective"));
+    expect(res.status).toBe(200);
+  });
+
+  it("accepts osmosis chain", async () => {
+    mockFetchTransactions.mockResolvedValue([]);
+    const req = createRequest(
+      "/api/proxy/osmosis?address=kaspa:qr0dummyaddr123",
+    );
+    const res = await GET(req, createParams("osmosis"));
     expect(res.status).toBe(200);
   });
 
