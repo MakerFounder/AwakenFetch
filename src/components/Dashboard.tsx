@@ -120,7 +120,7 @@ export function Dashboard({ chains }: DashboardProps) {
       <header className="sticky top-0 z-40 flex justify-center px-4 pt-4">
         <nav className="flex items-center gap-8 rounded-full border border-border/40 bg-background/80 backdrop-blur-md px-7 py-2.5">
           <div className="flex items-center gap-2.5">
-            <img src="/awakenfetch_icon.svg" alt="AwakenFetch icon" width={28} height={28} className="rounded-lg shadow-sm" />
+            <img src="/icon.svg" alt="AwakenFetch icon" width={28} height={28} className="rounded-lg shadow-sm" />
             <h1 className="text-base font-bold tracking-tight">
               <span className="text-foreground">Awaken</span><span className="text-accent">Fetch</span>
             </h1>
@@ -257,7 +257,7 @@ export function Dashboard({ chains }: DashboardProps) {
       <footer className="sm:mt-auto border-t border-border/40">
         <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between text-xs text-muted max-sm:flex-col max-sm:items-center max-sm:gap-2 max-sm:py-3">
           <div className="flex items-center gap-2">
-            <img src="/awakenfetch_icon.svg" alt="AwakenFetch icon" width={16} height={16} className="rounded" />
+            <img src="/icon.svg" alt="AwakenFetch icon" width={16} height={16} className="rounded" />
             <span><span className="text-foreground/70 font-medium">AwakenFetch</span> <span className="hidden sm:inline">— Awaken Tax-compliant CSV exports</span></span>
           </div>
           <a
