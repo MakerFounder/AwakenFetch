@@ -38,9 +38,7 @@ yarn-error.log*
 .vercel
 
 # private files
-.ralphy/
-docs/
-PRD.md
+
 
 # typescript
 *.tsbuildinfo
