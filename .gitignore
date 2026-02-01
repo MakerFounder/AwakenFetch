@@ -37,6 +37,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# private files
+.ralphy/
+docs/
+PRD.md
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
