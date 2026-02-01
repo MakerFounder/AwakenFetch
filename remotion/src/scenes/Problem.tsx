@@ -55,7 +55,7 @@ export const Problem: React.FC = () => {
       >
         <div style={{ opacity: headlineOpacity, transform: `translateY(${headlineY}px)`, textAlign: "center" }}>
           <div style={{ fontSize: 64, fontWeight: 900, color: theme.foreground, lineHeight: 1.2 }}>
-            Your chain isn't on{" "}
+            Your chain isn&apos;t on{" "}
             <span style={{ color: theme.accent }}>Awaken Tax</span>?
           </div>
           <div style={{ fontSize: 30, color: theme.muted, marginTop: 16 }}>
