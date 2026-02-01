@@ -1,8 +1,8 @@
 /**
  * Ronin (RON) chain adapter.
  *
- * Fetches transactions from the SkyMavis Web3 API
- * (https://api-gateway.skymavis.com/skynet/ronin/web3/v2/) and maps them
+ * Fetches transactions from the Ronin Skynet Explorer API
+ * (https://skynet-api.roninchain.com/ronin/explorer/v2/) and maps them
  * to the AwakenFetch Transaction interface.
  *
  * Supported transaction types:
@@ -13,8 +13,10 @@
  * Ronin is an EVM-compatible chain (Ethereum-based).
  * RON has 18 decimal places (1 RON = 10^18 wei).
  *
- * API key must be set via SKYMAVIS_API_KEY environment variable.
- * Auth: X-API-KEY header.
+ * The Ronin Skynet Explorer API is public and requires no API key.
+ * Requests go through the Next.js API proxy (/api/proxy/ronin) to
+ * avoid CORS issues from browser-side calls.
+ *
  * Address format: 0x-prefixed, 42 hex chars (standard Ethereum).
  *   Ronin also uses "ronin:" prefix (e.g. ronin:abc…) which we normalize.
  */
@@ -30,11 +32,11 @@ import { fetchWithRetry } from "@/lib/fetchWithRetry";
 /** 1 RON = 10^18 wei. */
 const WEI_DIVISOR = 1e18;
 
-/** SkyMavis Web3 API base URL. */
+/** Ronin Skynet Explorer API base URL (replaces deprecated SkyMavis Skynet Web3 API). */
 const API_BASE =
-  "https://api-gateway.skymavis.com/skynet/ronin/web3/v2";
+  "https://skynet-api.roninchain.com/ronin/explorer/v2";
 
-/** Maximum results per page from the SkyMavis API. */
+/** Maximum results per page from the Ronin Skynet Explorer API. */
 const PAGE_LIMIT = 200;
 
 /**
@@ -184,25 +186,27 @@ export function isValidRoninAddress(address: string): boolean {
 
 /**
  * Get the SkyMavis API key from environment variables.
+ * @deprecated The new Ronin Skynet Explorer API is public and requires no API key.
  */
 function getApiKey(): string {
   const key = process.env.SKYMAVIS_API_KEY;
   if (!key) {
-    throw new Error(
-      "SKYMAVIS_API_KEY environment variable is not set. " +
-        "Get a key from https://developers.skymavis.com/",
-    );
+    // The new Ronin Skynet Explorer API does not require an API key.
+    // Return empty string for backwards compatibility.
+    return "";
   }
   return key;
 }
 
 /**
- * Build common request headers with API key.
+ * Build common request headers.
  */
 function getHeaders(): Record<string, string> {
-  return {
-    "X-API-KEY": getApiKey(),
-  };
+  const key = getApiKey();
+  if (key) {
+    return { "X-API-KEY": key };
+  }
+  return {};
 }
 
 // ---------------------------------------------------------------------------
@@ -431,7 +435,7 @@ function mapTokenTransfer(
 // ---------------------------------------------------------------------------
 
 /**
- * Fetch native transactions for an address from the SkyMavis API.
+ * Fetch native transactions for an address from the Ronin Skynet Explorer API.
  */
 async function fetchNativeTransactions(
   address: string,
@@ -451,7 +455,7 @@ async function fetchNativeTransactions(
 
     const data = await fetchWithRetry<SkyMavisTxResponse>(url, {
       headers,
-      errorLabel: "SkyMavis Ronin",
+      errorLabel: "Ronin Skynet Explorer",
     });
 
     const items = data.result?.items;
@@ -477,7 +481,7 @@ async function fetchNativeTransactions(
 }
 
 /**
- * Fetch token transfers for an address from the SkyMavis API.
+ * Fetch token transfers for an address from the Ronin Skynet Explorer API.
  */
 async function fetchTokenTransfers(
   address: string,
@@ -497,7 +501,7 @@ async function fetchTokenTransfers(
 
     const data = await fetchWithRetry<SkyMavisTokenTransferResponse>(url, {
       headers,
-      errorLabel: "SkyMavis Ronin",
+      errorLabel: "Ronin Skynet Explorer",
     });
 
     const items = data.result?.items;

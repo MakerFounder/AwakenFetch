@@ -347,15 +347,13 @@ describe("roninAdapter.fetchTransactions", () => {
   });
 
   it("throws for invalid address", async () => {
-    vi.stubEnv("SKYMAVIS_API_KEY", "test-key");
     await expect(
       roninAdapter.fetchTransactions("invalid-address"),
     ).rejects.toThrow("Invalid Ronin address");
   });
 
-  it("throws when SKYMAVIS_API_KEY is not set", async () => {
-    vi.stubEnv("SKYMAVIS_API_KEY", "");
-    // Clear the env var
+  it("works without SKYMAVIS_API_KEY (public API)", async () => {
+    // The new Ronin Skynet Explorer API is public and does not require an API key.
     delete process.env.SKYMAVIS_API_KEY;
 
     vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
@@ -364,13 +362,11 @@ describe("roninAdapter.fetchTransactions", () => {
       });
     });
 
-    await expect(
-      roninAdapter.fetchTransactions(VALID_ADDRESS),
-    ).rejects.toThrow("SKYMAVIS_API_KEY");
+    const txs = await roninAdapter.fetchTransactions(VALID_ADDRESS);
+    expect(txs).toHaveLength(0);
   });
 
   it("fetches and maps a send transaction (native RON)", async () => {
-    vi.stubEnv("SKYMAVIS_API_KEY", "test-key");
     const mockTx = makeMockNativeTx({
       transactionHash: "0xtx-send-001",
       from: VALID_ADDRESS,
@@ -406,7 +402,6 @@ describe("roninAdapter.fetchTransactions", () => {
   });
 
   it("fetches and maps a receive transaction (native RON)", async () => {
-    vi.stubEnv("SKYMAVIS_API_KEY", "test-key");
     const mockTx = makeMockNativeTx({
       transactionHash: "0xtx-recv-001",
       from: OTHER_ADDRESS,
@@ -438,7 +433,6 @@ describe("roninAdapter.fetchTransactions", () => {
   });
 
   it("fetches and maps an ERC-20 token transfer (receive)", async () => {
-    vi.stubEnv("SKYMAVIS_API_KEY", "test-key");
     const mockTransfer = makeMockTokenTransfer({
       transactionHash: "0xtx-token-recv-001",
       from: OTHER_ADDRESS,
@@ -472,7 +466,6 @@ describe("roninAdapter.fetchTransactions", () => {
   });
 
   it("fetches and maps an ERC-20 token transfer (send)", async () => {
-    vi.stubEnv("SKYMAVIS_API_KEY", "test-key");
     const mockTransfer = makeMockTokenTransfer({
       transactionHash: "0xtx-token-send-001",
       from: VALID_ADDRESS,
@@ -506,7 +499,6 @@ describe("roninAdapter.fetchTransactions", () => {
   });
 
   it("maps approval transactions", async () => {
-    vi.stubEnv("SKYMAVIS_API_KEY", "test-key");
     const mockTx = makeMockNativeTx({
       transactionHash: "0xtx-approve-001",
       from: VALID_ADDRESS,
@@ -539,7 +531,6 @@ describe("roninAdapter.fetchTransactions", () => {
   });
 
   it("maps contract interactions (non-approval, zero value)", async () => {
-    vi.stubEnv("SKYMAVIS_API_KEY", "test-key");
     const mockTx = makeMockNativeTx({
       transactionHash: "0xtx-contract-001",
       from: VALID_ADDRESS,
@@ -571,7 +562,6 @@ describe("roninAdapter.fetchTransactions", () => {
   });
 
   it("skips failed transactions (status !== 1)", async () => {
-    vi.stubEnv("SKYMAVIS_API_KEY", "test-key");
     const mockTx = makeMockNativeTx({
       transactionHash: "0xtx-failed-001",
       status: 0, // failed
@@ -597,7 +587,6 @@ describe("roninAdapter.fetchTransactions", () => {
   });
 
   it("maps self-transfer (native RON)", async () => {
-    vi.stubEnv("SKYMAVIS_API_KEY", "test-key");
     const mockTx = makeMockNativeTx({
       transactionHash: "0xtx-self-001",
       from: VALID_ADDRESS,
@@ -630,7 +619,6 @@ describe("roninAdapter.fetchTransactions", () => {
   });
 
   it("maps token mint (from zero address)", async () => {
-    vi.stubEnv("SKYMAVIS_API_KEY", "test-key");
     const mockTransfer = makeMockTokenTransfer({
       transactionHash: "0xtx-mint-001",
       from: "0x0000000000000000000000000000000000000000",
@@ -665,7 +653,6 @@ describe("roninAdapter.fetchTransactions", () => {
   });
 
   it("maps token burn (to zero address)", async () => {
-    vi.stubEnv("SKYMAVIS_API_KEY", "test-key");
     const mockTransfer = makeMockTokenTransfer({
       transactionHash: "0xtx-burn-001",
       from: VALID_ADDRESS,
@@ -700,7 +687,6 @@ describe("roninAdapter.fetchTransactions", () => {
   });
 
   it("sorts transactions by date ascending", async () => {
-    vi.stubEnv("SKYMAVIS_API_KEY", "test-key");
     const tx1 = makeMockNativeTx({
       transactionHash: "0xtx-later",
       blockTime: 1705400000, // later
@@ -740,7 +726,6 @@ describe("roninAdapter.fetchTransactions", () => {
   });
 
   it("filters transactions by date range", async () => {
-    vi.stubEnv("SKYMAVIS_API_KEY", "test-key");
     const txOld = makeMockNativeTx({
       transactionHash: "0xtx-old",
       blockTime: 1700000000, // 2023-11-14
@@ -789,8 +774,6 @@ describe("roninAdapter.fetchTransactions", () => {
   });
 
   it("handles empty transaction list", async () => {
-    vi.stubEnv("SKYMAVIS_API_KEY", "test-key");
-
     vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
       const urlStr = typeof url === "string" ? url : url.toString();
       if (urlStr.includes("/txs")) {
@@ -810,7 +793,6 @@ describe("roninAdapter.fetchTransactions", () => {
   });
 
   it("handles API error with retry", async () => {
-    vi.stubEnv("SKYMAVIS_API_KEY", "test-key");
     let callCount = 0;
 
     vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
@@ -830,7 +812,6 @@ describe("roninAdapter.fetchTransactions", () => {
   });
 
   it("accepts ronin:-prefixed addresses", async () => {
-    vi.stubEnv("SKYMAVIS_API_KEY", "test-key");
     const mockTx = makeMockNativeTx({
       transactionHash: "0xtx-ronin-prefix-001",
       from: OTHER_ADDRESS,
@@ -863,7 +844,6 @@ describe("roninAdapter.fetchTransactions", () => {
   });
 
   it("combines native and token transactions", async () => {
-    vi.stubEnv("SKYMAVIS_API_KEY", "test-key");
     const nativeTx = makeMockNativeTx({
       transactionHash: "0xtx-native-001",
       from: OTHER_ADDRESS,
@@ -902,6 +882,25 @@ describe("roninAdapter.fetchTransactions", () => {
     // Should be sorted by date
     expect(txs[0].receivedCurrency).toBe("RON");
     expect(txs[1].receivedCurrency).toBe("AXS");
+  });
+
+  it("sends requests to the Ronin Skynet Explorer API", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      const urlStr = typeof url === "string" ? url : url.toString();
+      expect(urlStr).toContain("skynet-api.roninchain.com/ronin/explorer/v2");
+      if (urlStr.includes("/txs")) {
+        return new Response(
+          JSON.stringify(makeNativeTxResponse([])),
+          { status: 200 },
+        );
+      }
+      return new Response(
+        JSON.stringify(makeTokenTransferResponse([])),
+        { status: 200 },
+      );
+    });
+
+    await roninAdapter.fetchTransactions(VALID_ADDRESS);
   });
 });
 

@@ -17,7 +17,7 @@ import { getAdapter } from "@/lib/adapters";
 import type { FetchOptions, Transaction } from "@/types";
 
 /** Chains whose explorer APIs require a server-side proxy due to CORS. */
-const PROXY_ENABLED_CHAINS = new Set(["bittensor", "kaspa", "injective", "osmosis", "ergo"]);
+const PROXY_ENABLED_CHAINS = new Set(["bittensor", "kaspa", "injective", "osmosis", "ergo", "ronin"]);
 
 /**
  * Serialise a Transaction for JSON transport.
