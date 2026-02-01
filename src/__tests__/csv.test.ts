@@ -26,8 +26,8 @@ describe("CSV Utils", () => {
       expect(formatQuantity(10)).toBe("10");
     });
 
-    it("limits to 8 decimal places", () => {
-      expect(formatQuantity(1.123456789012)).toBe("1.12345679");
+    it("preserves full decimal precision", () => {
+      expect(formatQuantity(1.123456789012)).toBe("1.123456789012");
     });
 
     it("strips trailing zeros", () => {

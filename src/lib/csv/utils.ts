@@ -17,20 +17,21 @@ export function formatDate(date: Date): string {
 }
 
 /**
- * Format a quantity to at most 8 decimal places, removing trailing zeros.
+ * Format a quantity removing trailing zeros.
  * Returns an empty string for undefined/null values.
  * Ensures no negative numbers (takes absolute value).
- * Avoids scientific notation for very small numbers.
+ * Avoids scientific notation for very small numbers (e.g. 1e-15 from 18-decimal chains).
  */
 export function formatQuantity(value: number | undefined): string {
   if (value === undefined || value === null) return "";
   if (Number.isNaN(value) || !Number.isFinite(value)) return "";
   const abs = Math.abs(value);
-  // Use toFixed(8) to avoid scientific notation, then strip trailing zeros
-  const fixed = abs.toFixed(8);
-  // Remove trailing zeros after the decimal point
-  const trimmed = fixed.replace(/\.?0+$/, "");
-  return trimmed;
+  const str = abs.toString();
+  if (str.includes("e")) {
+    const fixed = abs.toFixed(18);
+    return fixed.replace(/\.?0+$/, "");
+  }
+  return str;
 }
 
 /**

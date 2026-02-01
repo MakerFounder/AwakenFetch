@@ -112,14 +112,14 @@ function validateStandardCSV(csv: string): string[] {
       }
     }
 
-    // Max 8 decimal places
+    // Max 18 decimal places (chains like EGLD/ETH use 18 decimals)
     for (const idx of numericFieldIndices) {
       const val = fields[idx];
       if (val && val.includes(".")) {
         const decimals = val.split(".")[1];
-        if (decimals && decimals.length > 8) {
+        if (decimals && decimals.length > 18) {
           errors.push(
-            `Row ${i}, col ${idx}: "${val}" exceeds 8 decimal places`,
+            `Row ${i}, col ${idx}: "${val}" exceeds 18 decimal places`,
           );
         }
       }
@@ -198,15 +198,15 @@ function validatePerpCSV(csv: string): string[] {
       }
     }
 
-    // Max 8 decimal places for Amount, Fee, P&L
+    // Max 18 decimal places for Amount, Fee, P&L
     for (const idx of [2, 3, 4]) {
       const val = fields[idx];
       if (val && val.includes(".")) {
         const cleanVal = val.replace(/^-/, "");
         const decimals = cleanVal.split(".")[1];
-        if (decimals && decimals.length > 8) {
+        if (decimals && decimals.length > 18) {
           errors.push(
-            `Row ${i}, col ${idx}: "${val}" exceeds 8 decimal places`,
+            `Row ${i}, col ${idx}: "${val}" exceeds 18 decimal places`,
           );
         }
       }
@@ -406,7 +406,7 @@ describe("Awaken import validation — Standard CSV", () => {
     expect(csv).not.toMatch(SCIENTIFIC_NOTATION_REGEX);
   });
 
-  it("high-precision quantities are truncated to 8 decimal places", () => {
+  it("high-precision quantities are preserved with full precision", () => {
     const csv = generateStandardCSV([
       {
         date: new Date("2025-01-01T00:00:00Z"),
@@ -1032,11 +1032,9 @@ describe("Awaken validation — formatQuantity edge cases", () => {
     expect(formatQuantity(0.12345678)).toBe("0.12345678");
   });
 
-  it("truncates beyond 8 decimal places", () => {
+  it("preserves full decimal precision beyond 8 places", () => {
     const result = formatQuantity(0.123456789);
-    expect(result).toBe("0.12345679"); // rounds
-    const decimals = result.split(".")[1];
-    expect(decimals.length).toBeLessThanOrEqual(8);
+    expect(result).toBe("0.123456789");
   });
 });
 

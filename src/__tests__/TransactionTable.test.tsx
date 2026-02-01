@@ -136,7 +136,7 @@ describe("TransactionTable — rendering", () => {
     expect(types).toContain("claim");
   });
 
-  it("formats quantities with up to 8 decimal places", () => {
+  it("formats quantities preserving full decimal precision", () => {
     render(
       <TransactionTable
         transactions={[
@@ -149,8 +149,7 @@ describe("TransactionTable — rendering", () => {
         chainId="bittensor"
       />,
     );
-    // 1.123456789 → 1.12345679 (rounded to 8dp)
-    expect(screen.getByText("1.12345679")).toBeInTheDocument();
+    expect(screen.getByText("1.123456789")).toBeInTheDocument();
   });
 
   it("hyperlinks tx hashes to the correct explorer URL for bittensor", () => {

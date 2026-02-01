@@ -316,7 +316,7 @@ describe("Standard CSV — Appendix B example rows", () => {
     }
   });
 
-  it("all quantities have at most 8 decimal places", () => {
+  it("preserves full decimal precision in quantities", () => {
     const tx: Transaction = {
       date: new Date("2025-01-15T14:30:00Z"),
       type: "trade",
@@ -330,14 +330,9 @@ describe("Standard CSV — Appendix B example rows", () => {
 
     const csv = generateStandardCSV([tx]);
     const row = dataRows(csv)[0];
-    const fields = row.split(",");
-
-    for (const field of fields) {
-      if (/^\d+\.\d+$/.test(field)) {
-        const decimals = field.split(".")[1];
-        expect(decimals.length).toBeLessThanOrEqual(8);
-      }
-    }
+    expect(row).toContain("0.123456789012345");
+    expect(row).toContain("5000.000000001");
+    expect(row).toContain("0.000000009");
   });
 });
 
@@ -579,7 +574,7 @@ describe("Perpetuals CSV — Appendix B example rows", () => {
     }
   });
 
-  it("amounts have at most 8 decimal places in perps examples", () => {
+  it("preserves full decimal precision in perps amounts", () => {
     const tx: PerpTransaction = {
       date: new Date("2024-04-01T00:00:00Z"),
       asset: "BTC",
@@ -591,23 +586,9 @@ describe("Perpetuals CSV — Appendix B example rows", () => {
     };
 
     const csv = generatePerpCSV([tx]);
-    const fields = dataRows(csv)[0].split(",");
-
-    // Check amount (field 2), fee (field 3)
-    for (const idx of [2, 3]) {
-      const field = fields[idx];
-      if (field && /^\d+\.\d+$/.test(field)) {
-        const decimals = field.split(".")[1];
-        expect(decimals.length).toBeLessThanOrEqual(8);
-      }
-    }
-
-    // P&L may be negative, check decimal places on absolute value
-    const pnl = fields[4];
-    const pnlAbs = pnl.replace("-", "");
-    if (pnlAbs.includes(".")) {
-      const decimals = pnlAbs.split(".")[1];
-      expect(decimals.length).toBeLessThanOrEqual(8);
-    }
+    const row = dataRows(csv)[0];
+    expect(row).toContain("0.123456789012345");
+    expect(row).toContain("0.000000009");
+    expect(row).toContain("-0.999999999");
   });
 });

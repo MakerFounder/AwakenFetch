@@ -125,7 +125,7 @@ describe("generateStandardCSV", () => {
   // Decimal precision (max 8 places)
   // -------------------------------------------------------------------
   describe("decimal precision", () => {
-    it("limits quantities to 8 decimal places", () => {
+    it("preserves full decimal precision in quantities", () => {
       const tx: Transaction = {
         date: new Date("2025-01-01T00:00:00Z"),
         type: "receive",
@@ -134,8 +134,7 @@ describe("generateStandardCSV", () => {
       };
       const csv = generateStandardCSV([tx]);
       const row = csv.split("\n")[1];
-      // 0.123456789123 rounded to 8 decimal places = 0.12345679
-      expect(row).toContain("0.12345679");
+      expect(row).toContain("0.123456789123");
     });
 
     it("strips trailing zeros", () => {

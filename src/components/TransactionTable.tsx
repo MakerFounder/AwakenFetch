@@ -70,7 +70,13 @@ function formatDateUTC(date: Date): string {
 
 function formatQuantity(value: number | undefined): string {
   if (value === undefined || value === null) return "";
-  return parseFloat(value.toFixed(8)).toString();
+  const abs = Math.abs(value);
+  const str = abs.toString();
+  if (str.includes("e")) {
+    const fixed = abs.toFixed(18);
+    return fixed.replace(/\.?0+$/, "");
+  }
+  return str;
 }
 
 function truncateHash(hash: string): string {

@@ -185,7 +185,7 @@ describe("generatePerpCSV", () => {
       expect(row).toContain("500.5");
     });
 
-    it("limits P&L to 8 decimal places", () => {
+    it("preserves full P&L decimal precision", () => {
       const tx: PerpTransaction = {
         date: new Date("2024-04-02T00:00:00Z"),
         asset: "BTC",
@@ -196,7 +196,7 @@ describe("generatePerpCSV", () => {
       };
       const csv = generatePerpCSV([tx]);
       const row = csv.split("\n")[1];
-      expect(row).toContain("-0.12345679");
+      expect(row).toContain("-0.123456789123");
     });
 
     it("strips trailing zeros from P&L", () => {
@@ -219,7 +219,7 @@ describe("generatePerpCSV", () => {
   // Amount handling (non-negative, max 8 decimal places)
   // -------------------------------------------------------------------
   describe("amount formatting", () => {
-    it("formats amount with up to 8 decimal places", () => {
+    it("formats amount preserving full decimal precision", () => {
       const tx: PerpTransaction = {
         date: new Date("2024-04-01T00:00:00Z"),
         asset: "BTC",
@@ -230,7 +230,7 @@ describe("generatePerpCSV", () => {
       };
       const csv = generatePerpCSV([tx]);
       const row = csv.split("\n")[1];
-      expect(row).toContain("0.12345679");
+      expect(row).toContain("0.123456789123");
     });
 
     it("strips trailing zeros from amount", () => {
