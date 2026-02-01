@@ -149,6 +149,8 @@ async function fetchTaostatsWithRetry<T>(url: string, apiKey: string): Promise<T
   return fetchWithRetry<T>(url, {
     headers: { Authorization: apiKey },
     errorLabel: "Taostats API",
+    maxRetries: 5,
+    baseDelayMs: 2_000,
   });
 }
 
@@ -401,11 +403,9 @@ export const bittensorAdapter: ChainAdapter = {
       );
     }
 
-    // Fetch transfers and staking extrinsics in parallel
-    const [transfers, extrinsics] = await Promise.all([
-      fetchTransfers(address, apiKey, options),
-      fetchStakingExtrinsics(address, apiKey, options),
-    ]);
+    // Fetch sequentially to avoid Taostats rate limits
+    const transfers = await fetchTransfers(address, apiKey, options);
+    const extrinsics = await fetchStakingExtrinsics(address, apiKey, options);
 
     // Map to Transaction interface
     const transferTxs = transfers.map((t) => mapTransfer(t, address));
