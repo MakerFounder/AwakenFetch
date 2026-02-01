@@ -16,6 +16,10 @@ export const metadata: Metadata = {
   title: "AwakenFetch — Crypto Transaction Exporter",
   description:
     "Fetch crypto transactions and export Awaken Tax-compliant CSVs",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

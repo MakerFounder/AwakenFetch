@@ -1,0 +1,23 @@
+{
+  "name": "awakenfetch-video",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render AwakenFetchVideo out/video.mp4",
+    "build": "remotion render AwakenFetchVideo out/video.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.414",
+    "@remotion/google-fonts": "4.0.414",
+    "@remotion/media": "^4.0.414",
+    "@remotion/transitions": "4.0.414",
+    "react": "^19",
+    "react-dom": "^19",
+    "remotion": "4.0.414"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "typescript": "^5"
+  }
+}
