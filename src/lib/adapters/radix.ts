@@ -18,7 +18,6 @@
 
 import type { ChainAdapter, FetchOptions, Transaction } from "@/types";
 import { generateStandardCSV } from "@/lib/csv";
-import { fetchWithRetry } from "@/lib/fetchWithRetry";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -38,10 +37,11 @@ const XRD_RESOURCE_ADDRESS =
 
 /**
  * Radix mainnet account address regex.
- * Bech32m format: "account_rdx1" followed by 26-59 valid bech32 characters.
+ * Bech32m format: "account_rdx1" followed by exactly 54 valid bech32 characters.
+ * (30-byte payload → 48 data chars + 6 checksum chars = 54 bech32 chars.)
  */
 const RADIX_ADDRESS_REGEX =
-  /^account_rdx1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{26,59}$/;
+  /^account_rdx1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{54}$/;
 
 // ---------------------------------------------------------------------------
 // Radix Gateway API response types
@@ -100,6 +100,21 @@ interface RadixStreamTransactionsResponse {
   items: RadixStreamTransaction[];
 }
 
+/**
+ * Radix Gateway API error response shape.
+ */
+interface RadixGatewayError {
+  message?: string;
+  code?: number;
+  details?: {
+    validation_errors?: Array<{
+      path?: string;
+      errors?: string[];
+    }>;
+    type?: string;
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -116,24 +131,94 @@ export function isValidRadixAddress(address: string): boolean {
 }
 
 /**
+ * Error subclass for Radix Gateway client errors (4xx).
+ * Used to distinguish non-retryable client errors from transient failures.
+ */
+class RadixClientError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RadixClientError";
+  }
+}
+
+/**
  * Fetch JSON from Radix Gateway API with exponential backoff retry.
  * The Gateway API uses POST requests for all endpoints.
+ *
+ * Unlike the generic `fetchWithRetry`, this handles Radix-specific API error
+ * responses: 400-level client errors are NOT retried and their detailed
+ * validation messages are surfaced in the thrown Error.
  */
 async function fetchRadixWithRetry<T>(
   endpoint: string,
   body: Record<string, unknown>,
 ): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
+  const maxRetries = 3;
+  const baseDelayMs = 1_000;
 
-  return fetchWithRetry<T>(url, {
-    errorLabel: "Radix Gateway API",
-    baseDelayMs: 1_000,
-    method: "POST",
-    body: JSON.stringify(body),
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          accept: "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      // Rate limited — back off and retry
+      if (response.status === 429) {
+        const delay = baseDelayMs * Math.pow(2, attempt);
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+
+      // Client errors (4xx, except 429) should NOT be retried —
+      // parse the response body and surface the real validation message.
+      if (response.status >= 400 && response.status < 500) {
+        let detail = `${response.status} ${response.statusText}`;
+        try {
+          const errBody = (await response.json()) as RadixGatewayError;
+          const messages: string[] = [];
+          if (errBody.message) messages.push(errBody.message);
+          if (errBody.details?.validation_errors) {
+            for (const ve of errBody.details.validation_errors) {
+              if (ve.errors) messages.push(...ve.errors);
+            }
+          }
+          if (messages.length > 0) detail = messages.join(" — ");
+        } catch {
+          // If we can't parse the body, use the status text
+        }
+        throw new RadixClientError(`Radix Gateway API error: ${detail}`);
+      }
+
+      if (!response.ok) {
+        // 5xx — transient, retry
+        throw new Error(
+          `Radix Gateway API error: ${response.status} ${response.statusText}`,
+        );
+      }
+
+      return (await response.json()) as T;
+    } catch (error) {
+      // Re-throw client errors immediately (they won't resolve with retries)
+      if (error instanceof RadixClientError) {
+        throw error;
+      }
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (attempt < maxRetries - 1) {
+        const delay = baseDelayMs * Math.pow(2, attempt);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
+  }
+
+  throw lastError ?? new Error("Radix Gateway API request failed after retries");
 }
 
 /**

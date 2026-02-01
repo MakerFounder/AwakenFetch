@@ -91,6 +91,21 @@ describe("isValidRadixAddress", () => {
   it("rejects address that is too short", () => {
     expect(isValidRadixAddress("account_rdx1abc")).toBe(false);
   });
+
+  it("rejects address with wrong suffix length (not exactly 54 chars)", () => {
+    // 50 chars after prefix — too short
+    expect(
+      isValidRadixAddress(
+        "account_rdx1" + "q".repeat(50),
+      ),
+    ).toBe(false);
+    // 58 chars after prefix — too long
+    expect(
+      isValidRadixAddress(
+        "account_rdx1" + "q".repeat(58),
+      ),
+    ).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -747,6 +762,69 @@ describe("radixAdapter.fetchTransactions", () => {
 
     const parsed = JSON.parse(capturedBody);
     expect(parsed.affected_global_entities_filter).toEqual([VALID_ADDRESS]);
+  });
+
+  it("surfaces API validation error details for 400 responses", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          message: "One or more validation errors occurred",
+          code: 400,
+          details: {
+            validation_errors: [
+              {
+                path: "AffectedGlobalEntitiesFilter[0]",
+                errors: [
+                  "'AffectedGlobalEntitiesFilter[0]' must be a valid Bech32M-encoded RadixAddress.",
+                ],
+              },
+            ],
+            type: "InvalidRequestError",
+          },
+        }),
+        { status: 400, statusText: "Bad Request" },
+      ),
+    );
+
+    await expect(
+      radixAdapter.fetchTransactions(VALID_ADDRESS),
+    ).rejects.toThrow("Bech32M-encoded RadixAddress");
+  });
+
+  it("does not retry 400 client errors", async () => {
+    let callCount = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      callCount++;
+      return new Response(
+        JSON.stringify({
+          message: "Bad Request",
+          code: 400,
+          details: { type: "InvalidRequestError" },
+        }),
+        { status: 400, statusText: "Bad Request" },
+      );
+    });
+
+    await expect(
+      radixAdapter.fetchTransactions(VALID_ADDRESS),
+    ).rejects.toThrow("Radix Gateway API error");
+    // Should only call once — no retries for 400
+    expect(callCount).toBe(1);
+  });
+
+  it("retries on 5xx server errors", async () => {
+    let callCount = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      callCount++;
+      if (callCount <= 2) {
+        return new Response("Internal Server Error", { status: 500, statusText: "Internal Server Error" });
+      }
+      return new Response(JSON.stringify(wrapResponse([])), { status: 200 });
+    });
+
+    const txs = await radixAdapter.fetchTransactions(VALID_ADDRESS);
+    expect(txs).toHaveLength(0);
+    expect(callCount).toBe(3);
   });
 });
 
