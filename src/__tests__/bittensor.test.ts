@@ -169,6 +169,13 @@ describe("bittensorAdapter metadata", () => {
 describe("bittensorAdapter.fetchTransactions", () => {
   const VALID_ADDRESS = "5GGe5VYiBBNYL2rHA77wviRkWDCrV2FubZr81QqxA27qn4Ch";
 
+  /**
+   * High-activity wallet for manual integration testing.
+   * ~120 transfers / ~190 total transactions (incl. staking) in 2025.
+   */
+  const _HIGH_ACTIVITY_ADDRESS =
+    "5ECZxBs3cbGWTvozVbA9CAUdieTtdwyWLguHXNbXB9KAfLK4";
+
   beforeEach(() => {
     vi.stubEnv("TAOSTATS_API_KEY", "test-api-key-123");
   });
