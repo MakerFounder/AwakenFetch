@@ -14,6 +14,7 @@ import {
   getPreviousYearRange,
   type DateRange,
 } from "@/components/DateRangeFilter";
+import { ChainSelector } from "@/components/ChainSelector";
 
 export interface WalletFormProps {
   /** Available chains to display in the selector. */
@@ -96,8 +97,7 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched, onLoadingC
     }
   }
 
-  function handleChainChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const chainId = e.target.value;
+  function handleChainChange(chainId: string) {
     setSelectedChainId(chainId);
     if (touched && address.trim()) {
       runValidation(address, chainId);
@@ -159,20 +159,12 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched, onLoadingC
             </svg>
           </button>
         </div>
-        <select
-          id="chain-select"
-          value={selectedChainId}
-          onChange={handleChainChange}
+        <ChainSelector
+          chains={enabledChains}
+          selectedChainId={selectedChainId}
+          onChainChange={handleChainChange}
           disabled={isLoading}
-          className="cursor-pointer rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground transition-all hover:border-border-hover focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <option value="">Select a chain...</option>
-          {enabledChains.map((chain) => (
-            <option key={chain.chainId} value={chain.chainId}>
-              {chain.chainName} ({chain.ticker})
-            </option>
-          ))}
-        </select>
+        />
       </div>
 
       {/* Wallet address input */}
