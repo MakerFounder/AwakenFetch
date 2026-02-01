@@ -513,9 +513,14 @@ async function fetchAllTransactions(
   }
 
   if (options?.toDate) {
-    body.at_ledger_state = {
-      timestamp: options.toDate.toISOString(),
-    };
+    // The Radix Gateway API rejects timestamps in the future. When the upper
+    // bound is "now" or later, omit at_ledger_state so the API defaults to
+    // the current ledger state (equivalent behaviour, no validation error).
+    if (options.toDate.getTime() < Date.now()) {
+      body.at_ledger_state = {
+        timestamp: options.toDate.toISOString(),
+      };
+    }
   }
 
   // Use cursor from options if provided
