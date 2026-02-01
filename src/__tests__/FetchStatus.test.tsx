@@ -11,11 +11,13 @@ describe("FetchStatus", () => {
   const defaultProps = {
     status: "idle" as const,
     transactionCount: 0,
+    estimatedTotal: null,
     error: null,
     warnings: [],
     canRetry: false,
     onRetry: vi.fn(),
     onDismiss: vi.fn(),
+    onCancel: vi.fn(),
   };
 
   it("renders nothing when status is idle", () => {

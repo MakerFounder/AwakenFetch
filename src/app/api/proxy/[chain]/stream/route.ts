@@ -109,6 +109,15 @@ export async function GET(
           totalSent += batch.length;
         };
 
+        // Set up onEstimatedTotal callback for progress estimation
+        options.onEstimatedTotal = (total: number) => {
+          const line = JSON.stringify({
+            type: "meta",
+            estimatedTotal: total,
+          });
+          controller.enqueue(encoder.encode(line + "\n"));
+        };
+
         // Fetch all transactions — onProgress will stream batches as they arrive
         const transactions = await adapter.fetchTransactions(address, options);
 

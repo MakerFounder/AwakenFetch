@@ -2,26 +2,38 @@
 
 import type { FetchStatus as FetchStatusType } from "@/lib/useFetchTransactions";
 
+const LARGE_WALLET_THRESHOLD = 5_000;
+
 export interface FetchStatusProps {
   status: FetchStatusType;
   transactionCount: number;
+  estimatedTotal: number | null;
   error: string | null;
   warnings: string[];
   canRetry: boolean;
   onRetry: () => void;
   onDismiss: () => void;
+  onCancel: () => void;
 }
 
 export function FetchStatus({
   status,
   transactionCount,
+  estimatedTotal,
   error,
   warnings,
   canRetry,
   onRetry,
   onDismiss,
+  onCancel,
 }: FetchStatusProps) {
   if (status === "idle") return null;
+
+  const isActive = status === "loading" || status === "streaming";
+  const progress = estimatedTotal && estimatedTotal > 0
+    ? Math.min(transactionCount / estimatedTotal, 0.99)
+    : null;
+  const showLargeWarning = isActive && estimatedTotal !== null && estimatedTotal > LARGE_WALLET_THRESHOLD;
 
   return (
     <div
@@ -35,17 +47,62 @@ export function FetchStatus({
           <span className="text-sm text-muted">
             Fetching transactions...
           </span>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="cursor-pointer ml-auto rounded-lg border border-border px-3 py-1 text-xs font-medium text-muted transition-colors hover:border-border-hover hover:text-foreground"
+          >
+            Cancel
+          </button>
         </div>
       )}
 
       {status === "streaming" && (
-        <div className="flex items-center gap-3 rounded-xl border border-accent/30 bg-accent/5 px-4 py-3">
-          <Spinner />
-          <span className="text-sm text-accent">
-            Streaming transactions...{" "}
-            <strong>{transactionCount.toLocaleString()}</strong>{" "}
-            fetched so far
-          </span>
+        <div className="flex flex-col gap-2 rounded-xl border border-accent/30 bg-accent/5 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Spinner />
+            <span className="text-sm text-accent">
+              {estimatedTotal ? (
+                <>
+                  Fetching...{" "}
+                  <strong>{transactionCount.toLocaleString()}</strong>{" "}
+                  of ~<strong>{estimatedTotal.toLocaleString()}</strong>{" "}
+                  transactions
+                </>
+              ) : (
+                <>
+                  Streaming transactions...{" "}
+                  <strong>{transactionCount.toLocaleString()}</strong>{" "}
+                  fetched so far
+                </>
+              )}
+            </span>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="cursor-pointer ml-auto rounded-lg border border-accent/30 px-3 py-1 text-xs font-medium text-accent/70 transition-colors hover:border-accent hover:text-accent"
+            >
+              {transactionCount > 0 ? "Stop & use fetched" : "Cancel"}
+            </button>
+          </div>
+          {progress !== null && (
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-accent/10">
+              <div
+                className="h-full rounded-full bg-accent transition-all duration-300 ease-out"
+                style={{ width: `${(progress * 100).toFixed(1)}%` }}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {showLargeWarning && (
+        <div className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/5 px-4 py-2.5">
+          <WarningIcon />
+          <p className="text-xs text-warning">
+            This address has ~{estimatedTotal!.toLocaleString()} transactions in the selected period.
+            Consider narrowing your date range for faster results, or click &ldquo;Stop &amp; use fetched&rdquo; to work with what&apos;s been loaded so far.
+          </p>
         </div>
       )}
 

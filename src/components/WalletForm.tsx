@@ -248,11 +248,13 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched, onLoadingC
       <FetchStatus
         status={fetchState.status}
         transactionCount={fetchState.transactionCount}
+        estimatedTotal={fetchState.estimatedTotal}
         error={fetchState.error}
         warnings={fetchState.warnings}
         canRetry={fetchState.canRetry}
         onRetry={fetchState.retry}
         onDismiss={fetchState.reset}
+        onCancel={fetchState.cancel}
       />
 
       <ChainHelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />

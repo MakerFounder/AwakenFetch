@@ -324,11 +324,17 @@ async function fetchTransfers(
   const results: TaostatsTransfer[] = [];
   let page = 1;
   const timestamps = buildTimestampParams(options);
+  let reportedTotal = false;
 
   while (true) {
     const url = `${API_BASE}/transfer/v1?network=finney&address=${address}&limit=${PAGE_LIMIT}&page=${page}&order=timestamp_asc${timestamps}`;
     const data = await fetchTaostatsWithRetry<TaostatsTransferResponse>(url, apiKey);
     results.push(...data.data);
+
+    if (!reportedTotal && options?.onEstimatedTotal && data.pagination.total_items > 0) {
+      options.onEstimatedTotal(data.pagination.total_items);
+      reportedTotal = true;
+    }
 
     // Report progress for streaming: map this page's transfers and notify
     if (options?.onProgress && data.data.length > 0) {

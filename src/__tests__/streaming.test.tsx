@@ -297,11 +297,13 @@ describe("FetchStatus — streaming state", () => {
   const defaultProps = {
     status: "idle" as const,
     transactionCount: 0,
+    estimatedTotal: null,
     error: null,
     warnings: [],
     canRetry: false,
     onRetry: vi.fn(),
     onDismiss: vi.fn(),
+    onCancel: vi.fn(),
   };
 
   it("shows streaming progress with transaction count", () => {

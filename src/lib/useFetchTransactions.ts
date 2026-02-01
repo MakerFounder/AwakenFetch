@@ -31,6 +31,8 @@ export interface FetchState {
   transactions: Transaction[];
   /** Number of transactions fetched so far (for progress display). */
   transactionCount: number;
+  /** Estimated total number of transactions (from adapter pagination, if available). */
+  estimatedTotal: number | null;
   /** Error message if the fetch failed. */
   error: string | null;
   /** Non-blocking warnings encountered during the fetch. */
@@ -50,6 +52,8 @@ export interface UseFetchTransactionsReturn extends FetchState {
   retry: () => Promise<void>;
   /** Reset the state back to idle. */
   reset: () => void;
+  /** Cancel the current in-flight fetch. */
+  cancel: () => void;
   /** Whether a retry is possible (error state and retries remaining). */
   canRetry: boolean;
 }
@@ -89,6 +93,11 @@ interface StreamBatchMessage {
   transactions: Record<string, unknown>[];
 }
 
+interface StreamMetaMessage {
+  type: "meta";
+  estimatedTotal: number;
+}
+
 interface StreamDoneMessage {
   type: "done";
   total: number;
@@ -99,7 +108,7 @@ interface StreamErrorMessage {
   error: string;
 }
 
-type StreamMessage = StreamBatchMessage | StreamDoneMessage | StreamErrorMessage;
+type StreamMessage = StreamBatchMessage | StreamMetaMessage | StreamDoneMessage | StreamErrorMessage;
 
 /**
  * Build the query parameter string for proxy requests.
@@ -129,6 +138,7 @@ const initialState: FetchState = {
   status: "idle",
   transactions: [],
   transactionCount: 0,
+  estimatedTotal: null,
   error: null,
   warnings: [],
   retryCount: 0,
@@ -174,6 +184,7 @@ export function useFetchTransactions(): UseFetchTransactionsReturn {
           status: "success",
           transactions: cached,
           transactionCount: cached.length,
+          estimatedTotal: null,
           error: null,
           warnings: [],
           retryCount: 0,
@@ -186,6 +197,7 @@ export function useFetchTransactions(): UseFetchTransactionsReturn {
         status: "loading",
         transactions: [],
         transactionCount: 0,
+        estimatedTotal: null,
         error: null,
         warnings: [],
         retryCount: 0,
@@ -264,7 +276,12 @@ export function useFetchTransactions(): UseFetchTransactionsReturn {
             try {
               const msg = JSON.parse(trimmed) as StreamMessage;
 
-              if (msg.type === "batch") {
+              if (msg.type === "meta") {
+                setState((prev) => ({
+                  ...prev,
+                  estimatedTotal: msg.estimatedTotal,
+                }));
+              } else if (msg.type === "batch") {
                 const batch = msg.transactions.map(deserialiseTransaction);
                 allTransactions.push(...batch);
 
@@ -510,6 +527,15 @@ export function useFetchTransactions(): UseFetchTransactionsReturn {
     );
   }, [state.status, state.retryCount, executeStreamingFetch]);
 
+  const cancel = useCallback(() => {
+    abortRef.current?.abort();
+    setState((prev) => ({
+      ...prev,
+      status: prev.transactions.length > 0 ? "success" : "idle",
+      estimatedTotal: null,
+    }));
+  }, []);
+
   const reset = useCallback(() => {
     abortRef.current?.abort();
     setState(initialState);
@@ -524,6 +550,7 @@ export function useFetchTransactions(): UseFetchTransactionsReturn {
     fetchTransactions,
     retry,
     reset,
+    cancel,
     canRetry,
   };
 }

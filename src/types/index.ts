@@ -28,6 +28,8 @@ export interface FetchOptions {
   limit?: number;
   /** Optional callback invoked with each batch of transactions as they are fetched (for streaming). */
   onProgress?: (batch: Transaction[]) => void;
+  /** Optional callback invoked when the adapter knows the estimated total transaction count. */
+  onEstimatedTotal?: (total: number) => void;
 }
 
 /** A multi-asset entry (used for LP add/remove). */
