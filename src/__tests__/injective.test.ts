@@ -192,11 +192,11 @@ describe("buildLcdTxsUrl", () => {
     expect(url).toContain("pagination.limit=50");
     expect(url).toContain("order_by=ORDER_BY_DESC");
     // URLSearchParams encodes = as %3D and ' as %27
-    expect(url).toContain("events=");
-    // Verify the events value contains the address with message.sender
+    expect(url).toContain("query=");
+    // Verify the query value contains the address with message.sender
     const parsed = new URL(url);
-    const eventsParam = parsed.searchParams.get("events");
-    expect(eventsParam).toBe(
+    const queryParam = parsed.searchParams.get("query");
+    expect(queryParam).toBe(
       "message.sender='inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz'",
     );
   });
@@ -208,8 +208,8 @@ describe("buildLcdTxsUrl", () => {
     );
 
     const parsed = new URL(url);
-    const eventsParam = parsed.searchParams.get("events");
-    expect(eventsParam).toBe(
+    const queryParam = parsed.searchParams.get("query");
+    expect(queryParam).toBe(
       "transfer.recipient='inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz'",
     );
   });
@@ -245,11 +245,11 @@ describe("buildLcdTxsUrl", () => {
 
     // The raw URL string should contain encoded = (%3D) and ' (%27)
     // URLSearchParams handles this automatically
-    expect(url).toMatch(/events=message\.sender/);
+    expect(url).toMatch(/query=message\.sender/);
     // Should not produce an empty query error
     const parsed = new URL(url);
-    expect(parsed.searchParams.get("events")).toBeTruthy();
-    expect(parsed.searchParams.get("events")).not.toBe("");
+    expect(parsed.searchParams.get("query")).toBeTruthy();
+    expect(parsed.searchParams.get("query")).not.toBe("");
   });
 });
 
@@ -1084,7 +1084,7 @@ describe("injectiveAdapter.fetchTransactions", () => {
     const firstCallUrl = fetchSpy.mock.calls[0][0] as string;
     expect(firstCallUrl).toContain("sentry.lcd.injective.network");
     expect(firstCallUrl).toContain("/cosmos/tx/v1beta1/txs");
-    expect(firstCallUrl).toContain("events=");
+    expect(firstCallUrl).toContain("query=");
     expect(firstCallUrl).toContain("message.sender");
 
     // Verify the second call uses recipient events

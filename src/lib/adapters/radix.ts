@@ -36,12 +36,64 @@ const XRD_RESOURCE_ADDRESS =
   "resource_rdx1tknxxxxxxxxxradxrdxxxxxxxxx009923554798xxxxxxxxxradxrd";
 
 /**
- * Radix mainnet account address regex.
+ * Radix mainnet account address regex (quick pre-check).
  * Bech32m format: "account_rdx1" followed by exactly 54 valid bech32 characters.
  * (30-byte payload → 48 data chars + 6 checksum chars = 54 bech32 chars.)
  */
 const RADIX_ADDRESS_REGEX =
   /^account_rdx1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{54}$/;
+
+// ---------------------------------------------------------------------------
+// Bech32m checksum validation (pure implementation, no external deps)
+// ---------------------------------------------------------------------------
+
+const BECH32_CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+const BECH32M_CONST = 0x2bc830a3;
+const BECH32_GENERATORS = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+
+function bech32Polymod(values: number[]): number {
+  let chk = 1;
+  for (const v of values) {
+    const top = chk >> 25;
+    chk = ((chk & 0x1ffffff) << 5) ^ v;
+    for (let j = 0; j < 5; j++) {
+      chk ^= (top >> j) & 1 ? BECH32_GENERATORS[j] : 0;
+    }
+  }
+  return chk;
+}
+
+function bech32HrpExpand(hrp: string): number[] {
+  const result: number[] = [];
+  for (let i = 0; i < hrp.length; i++) {
+    result.push(hrp.charCodeAt(i) >> 5);
+  }
+  result.push(0);
+  for (let i = 0; i < hrp.length; i++) {
+    result.push(hrp.charCodeAt(i) & 31);
+  }
+  return result;
+}
+
+/**
+ * Verify a bech32m-encoded string has a valid checksum.
+ * Returns true only for valid bech32m (not bech32).
+ */
+function verifyBech32mChecksum(bech: string): boolean {
+  const lower = bech.toLowerCase();
+  const lastOne = lower.lastIndexOf("1");
+  if (lastOne < 1 || lastOne + 7 > lower.length) return false;
+
+  const hrp = lower.substring(0, lastOne);
+  const data: number[] = [];
+  for (let i = lastOne + 1; i < lower.length; i++) {
+    const d = BECH32_CHARSET.indexOf(lower[i]);
+    if (d < 0) return false;
+    data.push(d);
+  }
+
+  return bech32Polymod(bech32HrpExpand(hrp).concat(data)) === BECH32M_CONST;
+}
 
 // ---------------------------------------------------------------------------
 // Radix Gateway API response types
@@ -123,11 +175,14 @@ interface RadixGatewayError {
  * Validate a Radix mainnet account address.
  *
  * Radix account addresses are Bech32m-encoded with the prefix "account_rdx1".
+ * We validate both the format (regex) and the bech32m checksum to avoid
+ * sending invalid addresses to the Gateway API.
  */
 export function isValidRadixAddress(address: string): boolean {
   if (typeof address !== "string") return false;
   const trimmed = address.trim();
-  return RADIX_ADDRESS_REGEX.test(trimmed);
+  if (!RADIX_ADDRESS_REGEX.test(trimmed)) return false;
+  return verifyBech32mChecksum(trimmed);
 }
 
 /**

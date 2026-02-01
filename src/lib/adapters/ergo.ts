@@ -32,11 +32,17 @@ import { fetchWithRetry } from "@/lib/fetchWithRetry";
 /** 1 ERG = 1,000,000,000 nanoERG. */
 const NANOERG_DIVISOR = 1_000_000_000;
 
-/** Ergo Explorer API base URL. */
+/** Ergo Explorer API base URL (used for individual transaction lookups). */
 const API_BASE = "https://api.ergoplatform.com/api/v1";
 
-/** Maximum results per page from the API (capped at 500). */
+/** Ergo GraphQL API URL (used for address-based transaction listing). */
+const GRAPHQL_URL = "https://gql.ergoplatform.com/v1/graphql";
+
+/** Maximum results per page from the REST API (capped at 500). */
 const PAGE_SIZE = 500;
+
+/** Maximum results per GraphQL query. */
+const GQL_PAGE_SIZE = 50;
 
 /**
  * Ergo mainnet P2PK address regex.
@@ -147,6 +153,84 @@ async function fetchErgoWithRetry<T>(url: string): Promise<T> {
     errorLabel: "Ergo Explorer API",
     baseDelayMs: 1_000,
   });
+}
+
+// ---------------------------------------------------------------------------
+// GraphQL-based transaction listing
+// ---------------------------------------------------------------------------
+
+/** GraphQL response shape for transaction listing. */
+interface GqlTransactionRef {
+  transactionId: string;
+  timestamp: string;
+  inclusionHeight: number;
+}
+
+interface GqlResponse {
+  data?: { transactions: GqlTransactionRef[] };
+  errors?: Array<{ message: string }>;
+}
+
+/**
+ * Fetch transaction IDs for an address using the Ergo GraphQL API.
+ * Returns lightweight transaction references (id + timestamp + height).
+ *
+ * The GraphQL endpoint is more reliable than the REST `/addresses/{addr}/transactions`
+ * endpoint which frequently times out or returns 503.
+ */
+async function fetchTxRefsViaGraphQL(
+  address: string,
+  take: number,
+  skip: number,
+): Promise<GqlTransactionRef[]> {
+  const query = `{ transactions(addresses: ["${address}"], take: ${take}, skip: ${skip}) { transactionId timestamp inclusionHeight } }`;
+
+  const maxRetries = 3;
+  const baseDelayMs = 1_000;
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(GRAPHQL_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ query }),
+      });
+
+      if (response.status === 429) {
+        await new Promise((r) => setTimeout(r, baseDelayMs * Math.pow(2, attempt)));
+        continue;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Ergo GraphQL API error: ${response.status} ${response.statusText}`);
+      }
+
+      const result = (await response.json()) as GqlResponse;
+      if (result.errors?.length) {
+        throw new Error(`Ergo GraphQL error: ${result.errors[0].message}`);
+      }
+
+      return result.data?.transactions ?? [];
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (attempt < maxRetries - 1) {
+        await new Promise((r) => setTimeout(r, baseDelayMs * Math.pow(2, attempt)));
+      }
+    }
+  }
+
+  throw lastError ?? new Error("Ergo GraphQL API request failed after retries");
+}
+
+/**
+ * Fetch a single transaction by ID from the REST API.
+ * Individual tx lookups are fast and reliable.
+ */
+async function fetchTxById(txId: string): Promise<ErgoTransactionInfo> {
+  return fetchErgoWithRetry<ErgoTransactionInfo>(
+    `${API_BASE}/transactions/${txId}`,
+  );
 }
 
 /**
@@ -392,9 +476,77 @@ function mapTransaction(
 
 /**
  * Fetch all transactions for an address from the Ergo Explorer API.
- * Uses offset/limit pagination.
+ *
+ * Tries the REST endpoint first, and if it fails (e.g. 503 timeout which
+ * is common on the address/transactions endpoint), falls back to a two-step
+ * approach using the GraphQL API (list tx IDs) + REST (individual tx details).
  */
 async function fetchAllTransactions(
+  address: string,
+  options?: FetchOptions,
+): Promise<ErgoTransactionInfo[]> {
+  try {
+    return await fetchAllTransactionsViaREST(address, options);
+  } catch {
+    // REST address/transactions endpoint often times out (503).
+    // Fall back to GraphQL listing + REST individual lookups.
+    return await fetchAllTransactionsViaGraphQL(address, options);
+  }
+}
+
+/**
+ * Primary path: GraphQL for listing tx IDs, REST for full tx details.
+ */
+async function fetchAllTransactionsViaGraphQL(
+  address: string,
+  options?: FetchOptions,
+): Promise<ErgoTransactionInfo[]> {
+  const results: ErgoTransactionInfo[] = [];
+  let skip = 0;
+
+  while (true) {
+    const refs = await fetchTxRefsViaGraphQL(address, GQL_PAGE_SIZE, skip);
+    if (refs.length === 0) break;
+
+    // Apply date filtering early if possible (timestamps from GraphQL are ms)
+    let filteredRefs = refs;
+    if (options?.fromDate || options?.toDate) {
+      const fromMs = options.fromDate ? options.fromDate.getTime() : 0;
+      const toMs = options.toDate ? options.toDate.getTime() : Infinity;
+      filteredRefs = refs.filter((ref) => {
+        const ts = Number(ref.timestamp);
+        return ts >= fromMs && ts <= toMs;
+      });
+    }
+
+    // Fetch full details for each transaction
+    const txDetails = await Promise.all(
+      filteredRefs.map((ref) => fetchTxById(ref.transactionId)),
+    );
+
+    results.push(...txDetails);
+
+    // Report progress for streaming
+    if (options?.onProgress && txDetails.length > 0) {
+      const batch = txDetails
+        .map((tx) => mapTransaction(tx, address))
+        .filter((tx): tx is Transaction => tx !== null);
+      if (batch.length > 0) {
+        options.onProgress(batch);
+      }
+    }
+
+    if (refs.length < GQL_PAGE_SIZE) break;
+    skip += refs.length;
+  }
+
+  return results;
+}
+
+/**
+ * Fallback: direct REST endpoint (may time out for heavy addresses).
+ */
+async function fetchAllTransactionsViaREST(
   address: string,
   options?: FetchOptions,
 ): Promise<ErgoTransactionInfo[]> {

@@ -101,7 +101,7 @@ interface CosmosTxSearchResponse {
   pagination: {
     total: string;
     next_key?: string | null;
-  };
+  } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -922,7 +922,7 @@ async function fetchTxsByEvent(
   const limit = options?.limit ?? PAGE_LIMIT;
 
   while (true) {
-    const url = `${API_BASE}/cosmos/tx/v1beta1/txs?events=${encodeURIComponent(eventQuery)}&pagination.limit=${limit}&pagination.offset=${(page - 1) * limit}&order_by=ORDER_BY_DESC`;
+    const url = `${API_BASE}/cosmos/tx/v1beta1/txs?query=${encodeURIComponent(eventQuery)}&pagination.limit=${limit}&pagination.offset=${(page - 1) * limit}&order_by=ORDER_BY_DESC`;
 
     const data = await fetchWithRetry<CosmosTxSearchResponse>(url, {
       errorLabel: "Osmosis LCD",
@@ -948,7 +948,7 @@ async function fetchTxsByEvent(
       }
     }
 
-    const total = Number(data.pagination.total || 0);
+    const total = Number(data.pagination?.total || 0);
     if (page * limit >= total || data.tx_responses.length < limit) {
       break;
     }

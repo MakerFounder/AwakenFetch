@@ -101,7 +101,7 @@ interface LcdTxSearchResponse {
   pagination: {
     next_key: string | null;
     total: string;
-  };
+  } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -673,8 +673,9 @@ function mapTransaction(
 /**
  * Build a properly URL-encoded Cosmos LCD txs query URL.
  *
- * The events parameter must be formatted as:
- *   events=message.sender%3D%27<address>%27
+ * Uses the `query` parameter (not `events`) as required by newer Cosmos SDK
+ * versions (v0.47+). The query format is:
+ *   query=message.sender%3D%27<address>%27
  * where %3D is '=' and %27 is single-quote.
  */
 export function buildLcdTxsUrl(
@@ -688,7 +689,7 @@ export function buildLcdTxsUrl(
       : `transfer.recipient='${address}'`;
 
   const params = new URLSearchParams();
-  params.set("events", eventValue);
+  params.set("query", eventValue);
   params.set("pagination.limit", String(PAGE_LIMIT));
   params.set("order_by", "ORDER_BY_DESC");
 
@@ -822,7 +823,7 @@ async function fetchAllTransactions(
       }
 
       // Check pagination
-      paginationKey = data.pagination.next_key ?? undefined;
+      paginationKey = data.pagination?.next_key ?? undefined;
       if (!paginationKey || txResponses.length < PAGE_LIMIT) break;
     }
   }
