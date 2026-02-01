@@ -19,6 +19,7 @@ import { osmosisAdapter } from "./osmosis";
 import { roninAdapter } from "./ronin";
 import { variationalAdapter } from "./variational";
 import { extendedAdapter } from "./extended";
+import { gluenetAdapter } from "./gluenet";
 
 export { ChainAdapterRegistry } from "./registry";
 
@@ -38,6 +39,7 @@ registry.register(osmosisAdapter);
 registry.register(roninAdapter);
 registry.register(variationalAdapter);
 registry.register(extendedAdapter);
+registry.register(gluenetAdapter);
 
 /** Register a chain adapter on the default registry. */
 export function registerAdapter(adapter: ChainAdapter): void {

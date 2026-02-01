@@ -6,7 +6,7 @@ import type { ChainInfo } from "@/types";
 function ChainIcon({ chainId, chainName }: { chainId: string; chainName: string }) {
     const CHAIN_HAS_LOGO = new Set([
         "bittensor", "kaspa", "injective", "polkadot", "osmosis",
-        "hedera", "multiversx", "ergo", "ronin", "radix", "variational", "extended",
+        "hedera", "multiversx", "ergo", "ronin", "radix", "variational", "extended", "gluenet",
     ]);
 
     if (CHAIN_HAS_LOGO.has(chainId)) {

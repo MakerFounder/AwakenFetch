@@ -16,7 +16,7 @@ import { DownloadPerpsCSVButton } from "@/components/DownloadPerpsCSVButton";
 
 const CHAIN_HAS_LOGO = new Set([
   "bittensor", "kaspa", "injective", "polkadot", "osmosis",
-  "hedera", "multiversx", "ergo", "ronin", "radix", "variational", "extended",
+  "hedera", "multiversx", "ergo", "ronin", "radix", "variational", "extended", "gluenet",
 ]);
 
 function ChainIcon({ chainId, chainName, size = "sm" }: { chainId: string; chainName: string; size?: "sm" | "md" }) {
