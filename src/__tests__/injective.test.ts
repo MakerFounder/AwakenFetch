@@ -5,10 +5,12 @@
  *   - Injective address validation
  *   - Explorer URL generation
  *   - Amount parsing (parseAmount) and denom symbol conversion (denomToSymbol)
+ *   - LCD URL building with proper URL encoding (buildLcdTxsUrl)
  *   - Transaction mapping (send/receive/stake/unstake/claim/swap/bridge)
  *   - CSV generation via toAwakenCSV
  *   - fetchTransactions error handling
  *   - Pagination and date filtering
+ *   - LCD to internal format transformation
  */
 
 import { describe, it, expect, vi, afterEach } from "vitest";
@@ -17,6 +19,7 @@ import {
   isValidInjectiveAddress,
   parseAmount,
   denomToSymbol,
+  buildLcdTxsUrl,
 } from "@/lib/adapters/injective";
 import type { Transaction } from "@/types";
 
@@ -172,6 +175,85 @@ describe("denomToSymbol", () => {
 });
 
 // ---------------------------------------------------------------------------
+// buildLcdTxsUrl — URL encoding
+// ---------------------------------------------------------------------------
+
+describe("buildLcdTxsUrl", () => {
+  it("builds a sender query URL with properly encoded events", () => {
+    const url = buildLcdTxsUrl(
+      "inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz",
+      "sender",
+    );
+
+    // The events parameter should contain the properly encoded query
+    expect(url).toContain(
+      "sentry.lcd.injective.network/cosmos/tx/v1beta1/txs",
+    );
+    expect(url).toContain("pagination.limit=50");
+    expect(url).toContain("order_by=ORDER_BY_DESC");
+    // URLSearchParams encodes = as %3D and ' as %27
+    expect(url).toContain("events=");
+    // Verify the events value contains the address with message.sender
+    const parsed = new URL(url);
+    const eventsParam = parsed.searchParams.get("events");
+    expect(eventsParam).toBe(
+      "message.sender='inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz'",
+    );
+  });
+
+  it("builds a recipient query URL with transfer.recipient filter", () => {
+    const url = buildLcdTxsUrl(
+      "inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz",
+      "recipient",
+    );
+
+    const parsed = new URL(url);
+    const eventsParam = parsed.searchParams.get("events");
+    expect(eventsParam).toBe(
+      "transfer.recipient='inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz'",
+    );
+  });
+
+  it("includes pagination key when provided", () => {
+    const url = buildLcdTxsUrl(
+      "inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz",
+      "sender",
+      "abc123paginationkey",
+    );
+
+    const parsed = new URL(url);
+    expect(parsed.searchParams.get("pagination.key")).toBe(
+      "abc123paginationkey",
+    );
+  });
+
+  it("does not include pagination key when not provided", () => {
+    const url = buildLcdTxsUrl(
+      "inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz",
+      "sender",
+    );
+
+    const parsed = new URL(url);
+    expect(parsed.searchParams.has("pagination.key")).toBe(false);
+  });
+
+  it("URL-encodes special characters so LCD API accepts the query", () => {
+    const url = buildLcdTxsUrl(
+      "inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz",
+      "sender",
+    );
+
+    // The raw URL string should contain encoded = (%3D) and ' (%27)
+    // URLSearchParams handles this automatically
+    expect(url).toMatch(/events=message\.sender/);
+    // Should not produce an empty query error
+    const parsed = new URL(url);
+    expect(parsed.searchParams.get("events")).toBeTruthy();
+    expect(parsed.searchParams.get("events")).not.toBe("");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Explorer URL
 // ---------------------------------------------------------------------------
 
@@ -214,45 +296,70 @@ describe("injectiveAdapter metadata", () => {
 });
 
 // ---------------------------------------------------------------------------
-// fetchTransactions — mocked API calls
+// fetchTransactions — mocked LCD API calls
 // ---------------------------------------------------------------------------
 
 const VALID_ADDRESS = "inj1qy09gsfx3gxqjahumq97elwxqf4qu5agdmqgnz";
 const OTHER_ADDRESS = "inj1zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3t5045a";
 
-function makeMockExplorerTx(
+/**
+ * Create a mock LCD tx_response object.
+ */
+function makeMockLcdTxResponse(
   overrides: Partial<{
-    hash: string;
-    block_timestamp: string;
+    txhash: string;
+    timestamp: string;
     code: number;
-    messages: Array<{
-      type: string;
-      value: Record<string, unknown>;
+    height: string;
+    messages: Array<Record<string, unknown>>;
+    logs: Array<{
+      msg_index: number;
+      events: Array<{
+        type: string;
+        attributes: Array<{ key: string; value: string }>;
+      }>;
     }>;
-    events: Array<{
-      type: string;
-      attributes: Record<string, string>;
-    }>;
-    gas_fee: { denom: string; amount: string };
+    fee: Array<{ denom: string; amount: string }>;
+    gas_limit: string;
   }> = {},
 ) {
   return {
-    id: overrides.hash ?? "tx-abc-123",
-    block_number: 12345,
-    block_timestamp:
-      overrides.block_timestamp ?? "2025-01-15T14:30:00.000Z",
-    hash: overrides.hash ?? "tx-abc-123",
+    height: overrides.height ?? "12345",
+    txhash: overrides.txhash ?? "tx-abc-123",
     code: overrides.code ?? 0,
-    memo: "",
-    messages: overrides.messages ?? [],
-    tx_type: "injective",
-    gas_wanted: 200000,
-    gas_used: 150000,
-    gas_fee: overrides.gas_fee ?? {
-      denom: "inj",
-      amount: "100000000000000",
+    raw_log: "",
+    logs: overrides.logs ?? [],
+    tx: {
+      body: {
+        messages: overrides.messages ?? [],
+        memo: "",
+      },
+      auth_info: {
+        fee: {
+          amount: overrides.fee ?? [
+            { denom: "inj", amount: "100000000000000" },
+          ],
+          gas_limit: overrides.gas_limit ?? "200000",
+        },
+      },
     },
-    events: overrides.events,
+    timestamp: overrides.timestamp ?? "2025-01-15T14:30:00Z",
+  };
+}
+
+/**
+ * Wrap LCD tx_responses in the standard search response format.
+ */
+function makeLcdSearchResponse(
+  txResponses: ReturnType<typeof makeMockLcdTxResponse>[],
+  nextKey: string | null = null,
+) {
+  return {
+    tx_responses: txResponses,
+    pagination: {
+      next_key: nextKey,
+      total: String(txResponses.length),
+    },
   };
 }
 
@@ -268,30 +375,34 @@ describe("injectiveAdapter.fetchTransactions", () => {
   });
 
   it("fetches and maps a receive transaction (MsgSend)", async () => {
-    const mockTx = makeMockExplorerTx({
-      hash: "tx-receive-001",
-      block_timestamp: "2025-01-15T14:30:00.000Z",
+    const mockTx = makeMockLcdTxResponse({
+      txhash: "tx-receive-001",
+      timestamp: "2025-01-15T14:30:00Z",
       messages: [
         {
-          type: "/cosmos.bank.v1beta1.MsgSend",
-          value: {
-            from_address: OTHER_ADDRESS,
-            to_address: VALID_ADDRESS,
-            amount: [{ denom: "inj", amount: "5000000000000000000" }],
-          },
+          "@type": "/cosmos.bank.v1beta1.MsgSend",
+          from_address: OTHER_ADDRESS,
+          to_address: VALID_ADDRESS,
+          amount: [{ denom: "inj", amount: "5000000000000000000" }],
         },
       ],
     });
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          paging: { total: 1, from: 0, to: 1 },
-          data: [mockTx],
-        }),
-        { status: 200 },
-      ),
-    );
+    // First call: sender query (no results for this address as recipient in sender query)
+    // Second call: recipient query (finds the receive tx)
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([])),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([mockTx])),
+          { status: 200 },
+        ),
+      );
 
     const txs = await injectiveAdapter.fetchTransactions(VALID_ADDRESS);
 
@@ -303,31 +414,33 @@ describe("injectiveAdapter.fetchTransactions", () => {
   });
 
   it("fetches and maps a send transaction (MsgSend)", async () => {
-    const mockTx = makeMockExplorerTx({
-      hash: "tx-send-001",
-      block_timestamp: "2025-01-15T14:30:00.000Z",
+    const mockTx = makeMockLcdTxResponse({
+      txhash: "tx-send-001",
+      timestamp: "2025-01-15T14:30:00Z",
       messages: [
         {
-          type: "/cosmos.bank.v1beta1.MsgSend",
-          value: {
-            from_address: VALID_ADDRESS,
-            to_address: OTHER_ADDRESS,
-            amount: [{ denom: "inj", amount: "10000000000000000000" }],
-          },
+          "@type": "/cosmos.bank.v1beta1.MsgSend",
+          from_address: VALID_ADDRESS,
+          to_address: OTHER_ADDRESS,
+          amount: [{ denom: "inj", amount: "10000000000000000000" }],
         },
       ],
-      gas_fee: { denom: "inj", amount: "100000000000000" },
+      fee: [{ denom: "inj", amount: "100000000000000" }],
     });
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          paging: { total: 1, from: 0, to: 1 },
-          data: [mockTx],
-        }),
-        { status: 200 },
-      ),
-    );
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([mockTx])),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([])),
+          { status: 200 },
+        ),
+      );
 
     const txs = await injectiveAdapter.fetchTransactions(VALID_ADDRESS);
 
@@ -341,30 +454,32 @@ describe("injectiveAdapter.fetchTransactions", () => {
   });
 
   it("fetches and maps a stake transaction (MsgDelegate)", async () => {
-    const mockTx = makeMockExplorerTx({
-      hash: "tx-stake-001",
-      block_timestamp: "2025-02-01T10:00:00.000Z",
+    const mockTx = makeMockLcdTxResponse({
+      txhash: "tx-stake-001",
+      timestamp: "2025-02-01T10:00:00Z",
       messages: [
         {
-          type: "/cosmos.staking.v1beta1.MsgDelegate",
-          value: {
-            delegator_address: VALID_ADDRESS,
-            validator_address: "injvaloper1abcdef1234567890",
-            amount: { denom: "inj", amount: "2000000000000000000" },
-          },
+          "@type": "/cosmos.staking.v1beta1.MsgDelegate",
+          delegator_address: VALID_ADDRESS,
+          validator_address: "injvaloper1abcdef1234567890",
+          amount: { denom: "inj", amount: "2000000000000000000" },
         },
       ],
     });
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          paging: { total: 1, from: 0, to: 1 },
-          data: [mockTx],
-        }),
-        { status: 200 },
-      ),
-    );
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([mockTx])),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([])),
+          { status: 200 },
+        ),
+      );
 
     const txs = await injectiveAdapter.fetchTransactions(VALID_ADDRESS);
 
@@ -376,30 +491,32 @@ describe("injectiveAdapter.fetchTransactions", () => {
   });
 
   it("fetches and maps an unstake transaction (MsgUndelegate)", async () => {
-    const mockTx = makeMockExplorerTx({
-      hash: "tx-unstake-001",
-      block_timestamp: "2025-02-01T12:00:00.000Z",
+    const mockTx = makeMockLcdTxResponse({
+      txhash: "tx-unstake-001",
+      timestamp: "2025-02-01T12:00:00Z",
       messages: [
         {
-          type: "/cosmos.staking.v1beta1.MsgUndelegate",
-          value: {
-            delegator_address: VALID_ADDRESS,
-            validator_address: "injvaloper1abcdef1234567890",
-            amount: { denom: "inj", amount: "1000000000000000000" },
-          },
+          "@type": "/cosmos.staking.v1beta1.MsgUndelegate",
+          delegator_address: VALID_ADDRESS,
+          validator_address: "injvaloper1abcdef1234567890",
+          amount: { denom: "inj", amount: "1000000000000000000" },
         },
       ],
     });
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          paging: { total: 1, from: 0, to: 1 },
-          data: [mockTx],
-        }),
-        { status: 200 },
-      ),
-    );
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([mockTx])),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([])),
+          { status: 200 },
+        ),
+      );
 
     const txs = await injectiveAdapter.fetchTransactions(VALID_ADDRESS);
 
@@ -411,37 +528,49 @@ describe("injectiveAdapter.fetchTransactions", () => {
   });
 
   it("fetches and maps a reward claim (MsgWithdrawDelegatorReward)", async () => {
-    const mockTx = makeMockExplorerTx({
-      hash: "tx-claim-001",
-      block_timestamp: "2025-02-01T14:00:00.000Z",
+    const mockTx = makeMockLcdTxResponse({
+      txhash: "tx-claim-001",
+      timestamp: "2025-02-01T14:00:00Z",
       messages: [
         {
-          type: "/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
-          value: {
-            delegator_address: VALID_ADDRESS,
-            validator_address: "injvaloper1abcdef1234567890",
-          },
+          "@type":
+            "/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
+          delegator_address: VALID_ADDRESS,
+          validator_address: "injvaloper1abcdef1234567890",
         },
       ],
-      events: [
+      logs: [
         {
-          type: "withdraw_rewards",
-          attributes: {
-            amount: "500000000000000000inj",
-          },
+          msg_index: 0,
+          events: [
+            {
+              type: "withdraw_rewards",
+              attributes: [
+                { key: "amount", value: "500000000000000000inj" },
+                {
+                  key: "validator",
+                  value: "injvaloper1abcdef1234567890",
+                },
+              ],
+            },
+          ],
         },
       ],
     });
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          paging: { total: 1, from: 0, to: 1 },
-          data: [mockTx],
-        }),
-        { status: 200 },
-      ),
-    );
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([mockTx])),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([])),
+          { status: 200 },
+        ),
+      );
 
     const txs = await injectiveAdapter.fetchTransactions(VALID_ADDRESS);
 
@@ -452,30 +581,32 @@ describe("injectiveAdapter.fetchTransactions", () => {
   });
 
   it("fetches and maps an IBC transfer (MsgTransfer)", async () => {
-    const mockTx = makeMockExplorerTx({
-      hash: "tx-ibc-001",
-      block_timestamp: "2025-02-01T16:00:00.000Z",
+    const mockTx = makeMockLcdTxResponse({
+      txhash: "tx-ibc-001",
+      timestamp: "2025-02-01T16:00:00Z",
       messages: [
         {
-          type: "/ibc.applications.transfer.v1.MsgTransfer",
-          value: {
-            sender: VALID_ADDRESS,
-            receiver: "osmo1abcdef1234567890abcdef1234567890abcdef",
-            token: { denom: "inj", amount: "3000000000000000000" },
-          },
+          "@type": "/ibc.applications.transfer.v1.MsgTransfer",
+          sender: VALID_ADDRESS,
+          receiver: "osmo1abcdef1234567890abcdef1234567890abcdef",
+          token: { denom: "inj", amount: "3000000000000000000" },
         },
       ],
     });
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          paging: { total: 1, from: 0, to: 1 },
-          data: [mockTx],
-        }),
-        { status: 200 },
-      ),
-    );
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([mockTx])),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([])),
+          { status: 200 },
+        ),
+      );
 
     const txs = await injectiveAdapter.fetchTransactions(VALID_ADDRESS);
 
@@ -486,40 +617,51 @@ describe("injectiveAdapter.fetchTransactions", () => {
   });
 
   it("fetches and maps a contract execution as swap", async () => {
-    const mockTx = makeMockExplorerTx({
-      hash: "tx-swap-001",
-      block_timestamp: "2025-03-01T08:00:00.000Z",
+    const mockTx = makeMockLcdTxResponse({
+      txhash: "tx-swap-001",
+      timestamp: "2025-03-01T08:00:00Z",
       messages: [
         {
-          type: "/cosmwasm.wasm.v1.MsgExecuteContract",
-          value: {
-            sender: VALID_ADDRESS,
-            contract: "inj1contractaddresshere123456789012345678",
-            msg: { swap: { offer_asset: {} } },
-            funds: [{ denom: "inj", amount: "1000000000000000000" }],
-          },
+          "@type": "/cosmwasm.wasm.v1.MsgExecuteContract",
+          sender: VALID_ADDRESS,
+          contract: "inj1contractaddresshere123456789012345678",
+          msg: { swap: { offer_asset: {} } },
+          funds: [{ denom: "inj", amount: "1000000000000000000" }],
         },
       ],
-      events: [
+      logs: [
         {
-          type: "coin_received",
-          attributes: {
-            receiver: VALID_ADDRESS,
-            amount: "2000000peggy0xdAC17F958D2ee523a2206206994597C13D831ec7",
-          },
+          msg_index: 0,
+          events: [
+            {
+              type: "coin_received",
+              attributes: [
+                { key: "receiver", value: VALID_ADDRESS },
+                {
+                  key: "amount",
+                  value:
+                    "2000000peggy0xdAC17F958D2ee523a2206206994597C13D831ec7",
+                },
+              ],
+            },
+          ],
         },
       ],
     });
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          paging: { total: 1, from: 0, to: 1 },
-          data: [mockTx],
-        }),
-        { status: 200 },
-      ),
-    );
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([mockTx])),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([])),
+          { status: 200 },
+        ),
+      );
 
     const txs = await injectiveAdapter.fetchTransactions(VALID_ADDRESS);
 
@@ -532,75 +674,113 @@ describe("injectiveAdapter.fetchTransactions", () => {
   });
 
   it("skips failed transactions (code !== 0)", async () => {
-    const mockTx = makeMockExplorerTx({
-      hash: "tx-failed-001",
+    const mockTx = makeMockLcdTxResponse({
+      txhash: "tx-failed-001",
       code: 1,
       messages: [
         {
-          type: "/cosmos.bank.v1beta1.MsgSend",
-          value: {
-            from_address: VALID_ADDRESS,
-            to_address: OTHER_ADDRESS,
-            amount: [{ denom: "inj", amount: "1000000000000000000" }],
-          },
+          "@type": "/cosmos.bank.v1beta1.MsgSend",
+          from_address: VALID_ADDRESS,
+          to_address: OTHER_ADDRESS,
+          amount: [{ denom: "inj", amount: "1000000000000000000" }],
         },
       ],
     });
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          paging: { total: 1, from: 0, to: 1 },
-          data: [mockTx],
-        }),
-        { status: 200 },
-      ),
-    );
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([mockTx])),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([])),
+          { status: 200 },
+        ),
+      );
 
     const txs = await injectiveAdapter.fetchTransactions(VALID_ADDRESS);
     expect(txs).toHaveLength(0);
   });
 
+  it("deduplicates transactions returned by both sender and recipient queries", async () => {
+    const mockTx = makeMockLcdTxResponse({
+      txhash: "tx-dedup-001",
+      timestamp: "2025-01-15T14:30:00Z",
+      messages: [
+        {
+          "@type": "/cosmos.bank.v1beta1.MsgSend",
+          from_address: VALID_ADDRESS,
+          to_address: VALID_ADDRESS,
+          amount: [{ denom: "inj", amount: "1000000000000000000" }],
+        },
+      ],
+    });
+
+    // Same tx appears in both sender and recipient queries
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([mockTx])),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([mockTx])),
+          { status: 200 },
+        ),
+      );
+
+    const txs = await injectiveAdapter.fetchTransactions(VALID_ADDRESS);
+
+    // Should only appear once despite being in both queries
+    expect(txs).toHaveLength(1);
+    expect(txs[0].txHash).toBe("tx-dedup-001");
+  });
+
   it("sorts transactions by date ascending", async () => {
-    const tx1 = makeMockExplorerTx({
-      hash: "tx-later",
-      block_timestamp: "2025-06-15T12:00:00.000Z",
+    const tx1 = makeMockLcdTxResponse({
+      txhash: "tx-later",
+      timestamp: "2025-06-15T12:00:00Z",
       messages: [
         {
-          type: "/cosmos.bank.v1beta1.MsgSend",
-          value: {
-            from_address: OTHER_ADDRESS,
-            to_address: VALID_ADDRESS,
-            amount: [{ denom: "inj", amount: "1000000000000000000" }],
-          },
+          "@type": "/cosmos.bank.v1beta1.MsgSend",
+          from_address: OTHER_ADDRESS,
+          to_address: VALID_ADDRESS,
+          amount: [{ denom: "inj", amount: "1000000000000000000" }],
         },
       ],
     });
 
-    const tx2 = makeMockExplorerTx({
-      hash: "tx-earlier",
-      block_timestamp: "2025-01-15T14:30:00.000Z",
+    const tx2 = makeMockLcdTxResponse({
+      txhash: "tx-earlier",
+      timestamp: "2025-01-15T14:30:00Z",
       messages: [
         {
-          type: "/cosmos.bank.v1beta1.MsgSend",
-          value: {
-            from_address: OTHER_ADDRESS,
-            to_address: VALID_ADDRESS,
-            amount: [{ denom: "inj", amount: "2000000000000000000" }],
-          },
+          "@type": "/cosmos.bank.v1beta1.MsgSend",
+          from_address: OTHER_ADDRESS,
+          to_address: VALID_ADDRESS,
+          amount: [{ denom: "inj", amount: "2000000000000000000" }],
         },
       ],
     });
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          paging: { total: 2, from: 0, to: 2 },
-          data: [tx1, tx2],
-        }),
-        { status: 200 },
-      ),
-    );
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([])),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([tx1, tx2])),
+          { status: 200 },
+        ),
+      );
 
     const txs = await injectiveAdapter.fetchTransactions(VALID_ADDRESS);
 
@@ -619,10 +799,7 @@ describe("injectiveAdapter.fetchTransactions", () => {
         return new Response("Too Many Requests", { status: 429 });
       }
       return new Response(
-        JSON.stringify({
-          paging: { total: 0, from: 0, to: 0 },
-          data: [],
-        }),
+        JSON.stringify(makeLcdSearchResponse([])),
         { status: 200 },
       );
     });
@@ -632,54 +809,48 @@ describe("injectiveAdapter.fetchTransactions", () => {
     expect(callCount).toBeGreaterThan(2);
   });
 
-  it("handles pagination correctly", async () => {
-    // First page: 100 items (full page triggers next fetch)
-    const page1Data = Array.from({ length: 100 }, (_, i) =>
-      makeMockExplorerTx({
-        hash: `tx-page1-${i}`,
-        block_timestamp: new Date(
+  it("handles pagination correctly with next_key", async () => {
+    // First page: full page with next_key
+    const page1Data = Array.from({ length: 50 }, (_, i) =>
+      makeMockLcdTxResponse({
+        txhash: `tx-page1-${i}`,
+        timestamp: new Date(
           Date.UTC(2025, 0, 15, 14, 30, i),
         ).toISOString(),
         messages: [
           {
-            type: "/cosmos.bank.v1beta1.MsgSend",
-            value: {
-              from_address: OTHER_ADDRESS,
-              to_address: VALID_ADDRESS,
-              amount: [{ denom: "inj", amount: "1000000000000000000" }],
-            },
+            "@type": "/cosmos.bank.v1beta1.MsgSend",
+            from_address: VALID_ADDRESS,
+            to_address: OTHER_ADDRESS,
+            amount: [{ denom: "inj", amount: "1000000000000000000" }],
           },
         ],
       }),
     );
 
-    // Second page: 2 items
+    // Second page: 2 items, no next_key
     const page2Data = [
-      makeMockExplorerTx({
-        hash: "tx-page2-0",
-        block_timestamp: "2025-01-15T14:32:00.000Z",
+      makeMockLcdTxResponse({
+        txhash: "tx-page2-0",
+        timestamp: "2025-01-15T14:32:00Z",
         messages: [
           {
-            type: "/cosmos.bank.v1beta1.MsgSend",
-            value: {
-              from_address: OTHER_ADDRESS,
-              to_address: VALID_ADDRESS,
-              amount: [{ denom: "inj", amount: "2000000000000000000" }],
-            },
+            "@type": "/cosmos.bank.v1beta1.MsgSend",
+            from_address: VALID_ADDRESS,
+            to_address: OTHER_ADDRESS,
+            amount: [{ denom: "inj", amount: "2000000000000000000" }],
           },
         ],
       }),
-      makeMockExplorerTx({
-        hash: "tx-page2-1",
-        block_timestamp: "2025-01-15T14:33:00.000Z",
+      makeMockLcdTxResponse({
+        txhash: "tx-page2-1",
+        timestamp: "2025-01-15T14:33:00Z",
         messages: [
           {
-            type: "/cosmos.bank.v1beta1.MsgSend",
-            value: {
-              from_address: OTHER_ADDRESS,
-              to_address: VALID_ADDRESS,
-              amount: [{ denom: "inj", amount: "3000000000000000000" }],
-            },
+            "@type": "/cosmos.bank.v1beta1.MsgSend",
+            from_address: VALID_ADDRESS,
+            to_address: OTHER_ADDRESS,
+            amount: [{ denom: "inj", amount: "3000000000000000000" }],
           },
         ],
       }),
@@ -689,84 +860,92 @@ describe("injectiveAdapter.fetchTransactions", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
       fetchCallCount++;
       if (fetchCallCount === 1) {
+        // Sender query page 1 — full page with next_key
         return new Response(
           JSON.stringify({
-            paging: { total: 102, from: 0, to: 100 },
-            data: page1Data,
+            tx_responses: page1Data,
+            pagination: { next_key: "page2key", total: "52" },
           }),
           { status: 200 },
         );
       }
+      if (fetchCallCount === 2) {
+        // Sender query page 2 — partial page, no next_key
+        return new Response(
+          JSON.stringify({
+            tx_responses: page2Data,
+            pagination: { next_key: null, total: "52" },
+          }),
+          { status: 200 },
+        );
+      }
+      // Recipient query — no results
       return new Response(
-        JSON.stringify({
-          paging: { total: 102, from: 100, to: 102 },
-          data: page2Data,
-        }),
+        JSON.stringify(makeLcdSearchResponse([])),
         { status: 200 },
       );
     });
 
     const txs = await injectiveAdapter.fetchTransactions(VALID_ADDRESS);
 
-    expect(fetchCallCount).toBe(2);
-    expect(txs).toHaveLength(102);
+    // 2 sender pages + 1 recipient page = 3 fetch calls
+    expect(fetchCallCount).toBe(3);
+    expect(txs).toHaveLength(52);
   });
 
   it("filters transactions by date range", async () => {
-    const tx1 = makeMockExplorerTx({
-      hash: "tx-old",
-      block_timestamp: "2024-01-01T00:00:00.000Z",
+    const tx1 = makeMockLcdTxResponse({
+      txhash: "tx-old",
+      timestamp: "2024-01-01T00:00:00Z",
       messages: [
         {
-          type: "/cosmos.bank.v1beta1.MsgSend",
-          value: {
-            from_address: OTHER_ADDRESS,
-            to_address: VALID_ADDRESS,
-            amount: [{ denom: "inj", amount: "1000000000000000000" }],
-          },
+          "@type": "/cosmos.bank.v1beta1.MsgSend",
+          from_address: OTHER_ADDRESS,
+          to_address: VALID_ADDRESS,
+          amount: [{ denom: "inj", amount: "1000000000000000000" }],
         },
       ],
     });
 
-    const tx2 = makeMockExplorerTx({
-      hash: "tx-in-range",
-      block_timestamp: "2024-06-15T12:00:00.000Z",
+    const tx2 = makeMockLcdTxResponse({
+      txhash: "tx-in-range",
+      timestamp: "2024-06-15T12:00:00Z",
       messages: [
         {
-          type: "/cosmos.bank.v1beta1.MsgSend",
-          value: {
-            from_address: OTHER_ADDRESS,
-            to_address: VALID_ADDRESS,
-            amount: [{ denom: "inj", amount: "2000000000000000000" }],
-          },
+          "@type": "/cosmos.bank.v1beta1.MsgSend",
+          from_address: OTHER_ADDRESS,
+          to_address: VALID_ADDRESS,
+          amount: [{ denom: "inj", amount: "2000000000000000000" }],
         },
       ],
     });
 
-    const tx3 = makeMockExplorerTx({
-      hash: "tx-too-new",
-      block_timestamp: "2025-01-01T00:00:00.000Z",
+    const tx3 = makeMockLcdTxResponse({
+      txhash: "tx-too-new",
+      timestamp: "2025-01-01T00:00:00Z",
       messages: [
         {
-          type: "/cosmos.bank.v1beta1.MsgSend",
-          value: {
-            from_address: OTHER_ADDRESS,
-            to_address: VALID_ADDRESS,
-            amount: [{ denom: "inj", amount: "3000000000000000000" }],
-          },
+          "@type": "/cosmos.bank.v1beta1.MsgSend",
+          from_address: OTHER_ADDRESS,
+          to_address: VALID_ADDRESS,
+          amount: [{ denom: "inj", amount: "3000000000000000000" }],
         },
       ],
     });
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          paging: { total: 3, from: 0, to: 3 },
-          data: [tx1, tx2, tx3],
-        }),
-        { status: 200 },
-      ),
-    );
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([])),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([tx1, tx2, tx3])),
+          { status: 200 },
+        ),
+      );
 
     const txs = await injectiveAdapter.fetchTransactions(VALID_ADDRESS, {
       fromDate: new Date("2024-06-01T00:00:00Z"),
@@ -778,46 +957,77 @@ describe("injectiveAdapter.fetchTransactions", () => {
   });
 
   it("handles empty transaction list", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          paging: { total: 0, from: 0, to: 0 },
-          data: [],
-        }),
-        { status: 200 },
-      ),
-    );
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([])),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([])),
+          { status: 200 },
+        ),
+      );
+
+    const txs = await injectiveAdapter.fetchTransactions(VALID_ADDRESS);
+    expect(txs).toHaveLength(0);
+  });
+
+  it("handles null tx_responses from LCD API", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            tx_responses: null,
+            pagination: { next_key: null, total: "0" },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            tx_responses: null,
+            pagination: { next_key: null, total: "0" },
+          }),
+          { status: 200 },
+        ),
+      );
 
     const txs = await injectiveAdapter.fetchTransactions(VALID_ADDRESS);
     expect(txs).toHaveLength(0);
   });
 
   it("maps redelegate transaction", async () => {
-    const mockTx = makeMockExplorerTx({
-      hash: "tx-redelegate-001",
-      block_timestamp: "2025-03-01T10:00:00.000Z",
+    const mockTx = makeMockLcdTxResponse({
+      txhash: "tx-redelegate-001",
+      timestamp: "2025-03-01T10:00:00Z",
       messages: [
         {
-          type: "/cosmos.staking.v1beta1.MsgBeginRedelegate",
-          value: {
-            delegator_address: VALID_ADDRESS,
-            validator_src_address: "injvaloper1src123456789012",
-            validator_dst_address: "injvaloper1dst123456789012",
-            amount: { denom: "inj", amount: "1000000000000000000" },
-          },
+          "@type": "/cosmos.staking.v1beta1.MsgBeginRedelegate",
+          delegator_address: VALID_ADDRESS,
+          validator_src_address: "injvaloper1src123456789012",
+          validator_dst_address: "injvaloper1dst123456789012",
+          amount: { denom: "inj", amount: "1000000000000000000" },
         },
       ],
     });
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          paging: { total: 1, from: 0, to: 1 },
-          data: [mockTx],
-        }),
-        { status: 200 },
-      ),
-    );
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([mockTx])),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([])),
+          { status: 200 },
+        ),
+      );
 
     const txs = await injectiveAdapter.fetchTransactions(VALID_ADDRESS);
 
@@ -828,31 +1038,58 @@ describe("injectiveAdapter.fetchTransactions", () => {
   });
 
   it("maps unknown message type as 'other'", async () => {
-    const mockTx = makeMockExplorerTx({
-      hash: "tx-unknown-001",
-      block_timestamp: "2025-03-01T10:00:00.000Z",
+    const mockTx = makeMockLcdTxResponse({
+      txhash: "tx-unknown-001",
+      timestamp: "2025-03-01T10:00:00Z",
       messages: [
         {
-          type: "/some.unknown.v1.MsgDoSomething",
-          value: {},
+          "@type": "/some.unknown.v1.MsgDoSomething",
         },
       ],
     });
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          paging: { total: 1, from: 0, to: 1 },
-          data: [mockTx],
-        }),
-        { status: 200 },
-      ),
-    );
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([mockTx])),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(makeLcdSearchResponse([])),
+          { status: 200 },
+        ),
+      );
 
     const txs = await injectiveAdapter.fetchTransactions(VALID_ADDRESS);
 
     expect(txs).toHaveLength(1);
     expect(txs[0].type).toBe("other");
+  });
+
+  it("uses LCD endpoint URL with correct events encoding", async () => {
+    const emptyResponse = JSON.stringify(makeLcdSearchResponse([]));
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockImplementation(async () =>
+        new Response(emptyResponse, { status: 200 }),
+      );
+
+    await injectiveAdapter.fetchTransactions(VALID_ADDRESS);
+
+    // Should make 2 calls: one for sender, one for recipient
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+    // Verify the first call uses the LCD endpoint with sender events
+    const firstCallUrl = fetchSpy.mock.calls[0][0] as string;
+    expect(firstCallUrl).toContain("sentry.lcd.injective.network");
+    expect(firstCallUrl).toContain("/cosmos/tx/v1beta1/txs");
+    expect(firstCallUrl).toContain("events=");
+    expect(firstCallUrl).toContain("message.sender");
+
+    // Verify the second call uses recipient events
+    const secondCallUrl = fetchSpy.mock.calls[1][0] as string;
+    expect(secondCallUrl).toContain("transfer.recipient");
   });
 });
 

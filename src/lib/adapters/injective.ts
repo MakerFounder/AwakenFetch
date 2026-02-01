@@ -1,9 +1,8 @@
 /**
  * Injective (INJ) chain adapter.
  *
- * Fetches transactions from:
- *   1. Injective Explorer REST API — account transaction history
- *   2. Cosmos LCD endpoints — staking delegations and rewards
+ * Fetches transactions from the Cosmos LCD endpoint:
+ *   https://sentry.lcd.injective.network/cosmos/tx/v1beta1/txs
  *
  * and maps them to the AwakenFetch Transaction interface.
  *
@@ -14,7 +13,10 @@
  *   - Swaps (MsgExecuteContract on DEX contracts — Helix, DojoSwap, etc.)
  *   - IBC transfers (MsgTransfer)
  *
- * The Injective Explorer API is public and requires no API key.
+ * The Cosmos LCD API is public and requires no API key.
+ * Requests go through the Next.js API proxy (/api/proxy/injective) to
+ * avoid CORS issues from browser-side calls.
+ *
  * Address format: inj1… (bech32 with "inj" human-readable prefix, 42 chars).
  */
 
@@ -29,12 +31,11 @@ import { fetchWithRetry } from "@/lib/fetchWithRetry";
 /** 1 INJ = 10^18 inj (smallest unit). */
 const INJ_DECIMALS = 18;
 
-/** Injective Explorer REST API base URL. */
-const EXPLORER_API_BASE =
-  "https://sentry.explorer.grpc-web.injective.network/api/explorer/v1";
+/** Cosmos LCD base URL for Injective mainnet. */
+const LCD_API_BASE = "https://sentry.lcd.injective.network";
 
-/** Maximum results per page from the Explorer API. */
-const PAGE_LIMIT = 100;
+/** Maximum results per page from the LCD API. */
+const PAGE_LIMIT = 50;
 
 /**
  * Injective address regex.
@@ -46,7 +47,65 @@ const INJ_ADDRESS_REGEX = /^inj1[a-z0-9]{38}$/;
 const INJ_DENOM = "inj";
 
 // ---------------------------------------------------------------------------
-// Explorer API response types
+// LCD API response types
+// ---------------------------------------------------------------------------
+
+interface LcdCoin {
+  denom: string;
+  amount: string;
+}
+
+interface LcdEventAttribute {
+  key: string;
+  value: string;
+}
+
+interface LcdEvent {
+  type: string;
+  attributes: LcdEventAttribute[];
+}
+
+interface LcdTxBody {
+  messages: Array<Record<string, unknown>>;
+  memo?: string;
+}
+
+interface LcdAuthInfo {
+  fee?: {
+    amount?: LcdCoin[];
+    gas_limit?: string;
+  };
+}
+
+interface LcdTx {
+  body: LcdTxBody;
+  auth_info?: LcdAuthInfo;
+}
+
+interface LcdTxResponse {
+  height: string;
+  txhash: string;
+  code: number;
+  raw_log?: string;
+  logs?: Array<{
+    msg_index: number;
+    events: LcdEvent[];
+  }>;
+  tx: LcdTx;
+  timestamp: string;
+  events?: LcdEvent[];
+}
+
+interface LcdTxSearchResponse {
+  tx_responses: LcdTxResponse[] | null;
+  pagination: {
+    next_key: string | null;
+    total: string;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Internal transaction types (used by mapping functions)
 // ---------------------------------------------------------------------------
 
 interface ExplorerCoin {
@@ -79,15 +138,6 @@ interface ExplorerTransaction {
   gas_used: number;
   gas_fee?: ExplorerCoin;
   error_log?: string;
-}
-
-interface ExplorerAccountTxsResponse {
-  paging: {
-    total: number;
-    from: number;
-    to: number;
-  };
-  data: ExplorerTransaction[];
 }
 
 // ---------------------------------------------------------------------------
@@ -181,11 +231,11 @@ export function isValidInjectiveAddress(address: string): boolean {
 }
 
 /**
- * Fetch JSON from Injective API with exponential backoff retry.
+ * Fetch JSON from Injective LCD API with exponential backoff retry.
  */
 async function fetchInjectiveWithRetry<T>(url: string): Promise<T> {
   return fetchWithRetry<T>(url, {
-    errorLabel: "Injective API",
+    errorLabel: "Injective LCD API",
   });
 }
 
@@ -617,43 +667,164 @@ function mapTransaction(
 }
 
 // ---------------------------------------------------------------------------
+// LCD → internal format transformation
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a properly URL-encoded Cosmos LCD txs query URL.
+ *
+ * The events parameter must be formatted as:
+ *   events=message.sender%3D%27<address>%27
+ * where %3D is '=' and %27 is single-quote.
+ */
+export function buildLcdTxsUrl(
+  address: string,
+  eventFilter: "sender" | "recipient",
+  paginationKey?: string,
+): string {
+  const eventValue =
+    eventFilter === "sender"
+      ? `message.sender='${address}'`
+      : `transfer.recipient='${address}'`;
+
+  const params = new URLSearchParams();
+  params.set("events", eventValue);
+  params.set("pagination.limit", String(PAGE_LIMIT));
+  params.set("order_by", "ORDER_BY_DESC");
+
+  if (paginationKey) {
+    params.set("pagination.key", paginationKey);
+  }
+
+  return `${LCD_API_BASE}/cosmos/tx/v1beta1/txs?${params.toString()}`;
+}
+
+/**
+ * Convert LCD event attributes (array of {key, value}) to a flat Record.
+ */
+function flattenEventAttributes(
+  attrs: LcdEventAttribute[],
+): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const attr of attrs) {
+    result[attr.key] = attr.value;
+  }
+  return result;
+}
+
+/**
+ * Transform an LCD tx_response into the internal ExplorerTransaction format
+ * used by the existing mapping functions.
+ */
+function lcdTxToExplorerTx(lcdTx: LcdTxResponse): ExplorerTransaction {
+  // Map messages: LCD uses @type, internal uses type
+  const messages: ExplorerMessage[] = lcdTx.tx.body.messages.map((msg) => {
+    const { "@type": msgType, ...rest } = msg;
+    return {
+      type: (msgType as string) ?? "",
+      value: rest,
+    };
+  });
+
+  // Extract fee from auth_info
+  let gasFee: ExplorerCoin | undefined;
+  const feeAmounts = lcdTx.tx.auth_info?.fee?.amount;
+  if (feeAmounts && feeAmounts.length > 0) {
+    gasFee = {
+      denom: feeAmounts[0].denom,
+      amount: feeAmounts[0].amount,
+    };
+  }
+
+  // Flatten events from logs (more detailed) or top-level events
+  const events: ExplorerEvent[] = [];
+  if (lcdTx.logs) {
+    for (const log of lcdTx.logs) {
+      for (const event of log.events) {
+        events.push({
+          type: event.type,
+          attributes: flattenEventAttributes(event.attributes),
+        });
+      }
+    }
+  } else if (lcdTx.events) {
+    for (const event of lcdTx.events) {
+      events.push({
+        type: event.type,
+        attributes: flattenEventAttributes(event.attributes),
+      });
+    }
+  }
+
+  const gasLimit = lcdTx.tx.auth_info?.fee?.gas_limit;
+
+  return {
+    id: lcdTx.txhash,
+    block_number: Number(lcdTx.height),
+    block_timestamp: lcdTx.timestamp,
+    hash: lcdTx.txhash,
+    code: lcdTx.code,
+    memo: lcdTx.tx.body.memo,
+    messages,
+    tx_type: "cosmos",
+    gas_wanted: gasLimit ? Number(gasLimit) : 0,
+    gas_used: 0,
+    gas_fee: gasFee,
+    events: events.length > 0 ? events : undefined,
+    error_log: lcdTx.code !== 0 ? lcdTx.raw_log : undefined,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Data fetching
 // ---------------------------------------------------------------------------
 
 /**
- * Fetch all transactions for an address from the Injective Explorer API.
- * Uses skip/limit pagination.
+ * Fetch all transactions for an address from the Cosmos LCD API.
+ * Queries both sent and received transactions, deduplicates by tx hash.
  */
 async function fetchAllTransactions(
   address: string,
   options?: FetchOptions,
 ): Promise<ExplorerTransaction[]> {
+  const seenHashes = new Set<string>();
   const results: ExplorerTransaction[] = [];
-  let skip = 0;
 
-  while (true) {
-    const url = `${EXPLORER_API_BASE}/accountTxs/${address}?skip=${skip}&limit=${PAGE_LIMIT}`;
-    const data = await fetchInjectiveWithRetry<ExplorerAccountTxsResponse>(url);
+  // Fetch both sent and received transactions
+  for (const filter of ["sender", "recipient"] as const) {
+    let paginationKey: string | undefined;
 
-    if (!data.data || data.data.length === 0) break;
+    while (true) {
+      const url = buildLcdTxsUrl(address, filter, paginationKey);
+      const data = await fetchInjectiveWithRetry<LcdTxSearchResponse>(url);
 
-    results.push(...data.data);
+      const txResponses = data.tx_responses ?? [];
+      if (txResponses.length === 0) break;
 
-    // Report progress for streaming: map this page's transactions and notify
-    if (options?.onProgress && data.data.length > 0) {
-      const batch = data.data
-        .map((tx) => mapTransaction(tx, address))
-        .filter((tx): tx is Transaction => tx !== null);
-      if (batch.length > 0) {
-        options.onProgress(batch);
+      const batch: ExplorerTransaction[] = [];
+      for (const lcdTx of txResponses) {
+        if (seenHashes.has(lcdTx.txhash)) continue;
+        seenHashes.add(lcdTx.txhash);
+
+        const explorerTx = lcdTxToExplorerTx(lcdTx);
+        batch.push(explorerTx);
+        results.push(explorerTx);
       }
-    }
 
-    if (results.length >= data.paging.total || data.data.length < PAGE_LIMIT) {
-      break;
-    }
+      // Report progress for streaming
+      if (options?.onProgress && batch.length > 0) {
+        const mappedBatch = batch
+          .map((tx) => mapTransaction(tx, address))
+          .filter((tx): tx is Transaction => tx !== null);
+        if (mappedBatch.length > 0) {
+          options.onProgress(mappedBatch);
+        }
+      }
 
-    skip += data.data.length;
+      // Check pagination
+      paginationKey = data.pagination.next_key ?? undefined;
+      if (!paginationKey || txResponses.length < PAGE_LIMIT) break;
+    }
   }
 
   // Apply date filtering if provided
