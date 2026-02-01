@@ -320,6 +320,7 @@ async function fetchTransfers(
   address: string,
   apiKey: string,
   options?: FetchOptions,
+  runningTotal?: { value: number },
 ): Promise<TaostatsTransfer[]> {
   const results: TaostatsTransfer[] = [];
   let page = 1;
@@ -331,8 +332,9 @@ async function fetchTransfers(
     const data = await fetchTaostatsWithRetry<TaostatsTransferResponse>(url, apiKey);
     results.push(...data.data);
 
-    if (!reportedTotal && options?.onEstimatedTotal && data.pagination.total_items > 0) {
-      options.onEstimatedTotal(data.pagination.total_items);
+    if (!reportedTotal && runningTotal && options?.onEstimatedTotal && data.pagination.total_items > 0) {
+      runningTotal.value += data.pagination.total_items;
+      options.onEstimatedTotal(runningTotal.value);
       reportedTotal = true;
     }
 
@@ -356,6 +358,7 @@ async function fetchStakingExtrinsics(
   address: string,
   apiKey: string,
   options?: FetchOptions,
+  runningTotal?: { value: number },
 ): Promise<TaostatsExtrinsic[]> {
   const allExtrinsics: TaostatsExtrinsic[] = [];
   const extrinsicTypes = [
@@ -368,12 +371,19 @@ async function fetchStakingExtrinsics(
 
   for (const fullName of extrinsicTypes) {
     let page = 1;
+    let reportedTotal = false;
     const timestamps = buildTimestampParams(options);
 
     while (true) {
       const url = `${API_BASE}/extrinsic/v1?signer_address=${address}&full_name=${encodeURIComponent(fullName)}&limit=${PAGE_LIMIT}&page=${page}&order=timestamp_asc${timestamps}`;
       const data = await fetchTaostatsWithRetry<TaostatsExtrinsicResponse>(url, apiKey);
       allExtrinsics.push(...data.data);
+
+      if (!reportedTotal && runningTotal && options?.onEstimatedTotal && data.pagination.total_items > 0) {
+        runningTotal.value += data.pagination.total_items;
+        options.onEstimatedTotal(runningTotal.value);
+        reportedTotal = true;
+      }
 
       // Report progress for streaming: map this page's extrinsics and notify
       if (options?.onProgress && data.data.length > 0) {
@@ -418,9 +428,12 @@ export const bittensorAdapter: ChainAdapter = {
       );
     }
 
+    // Shared running total for progress estimation across all fetch types
+    const runningTotal = { value: 0 };
+
     // Fetch sequentially to avoid Taostats rate limits
-    const transfers = await fetchTransfers(address, apiKey, options);
-    const extrinsics = await fetchStakingExtrinsics(address, apiKey, options);
+    const transfers = await fetchTransfers(address, apiKey, options, runningTotal);
+    const extrinsics = await fetchStakingExtrinsics(address, apiKey, options, runningTotal);
 
     // Map to Transaction interface
     const transferTxs = transfers.map((t) => mapTransfer(t, address));
