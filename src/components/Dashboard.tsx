@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import type { ChainInfo, Transaction, TransactionType } from "@/types";
 import type { DateRange } from "@/components/DateRangeFilter";
 import { WalletForm } from "@/components/WalletForm";
@@ -48,6 +48,7 @@ export interface DashboardProps {
 }
 
 export function Dashboard({ chains }: DashboardProps) {
+  const resultsRef = useRef<HTMLDivElement>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [activeChainId, setActiveChainId] = useState<string>("");
   const [activeAddress, setActiveAddress] = useState<string>("");
@@ -117,6 +118,13 @@ export function Dashboard({ chains }: DashboardProps) {
   const enabledChains = useMemo(() => chains.filter(c => c.enabled), [chains]);
   const comingSoonChains = useMemo(() => chains.filter(c => c.comingSoon), [chains]);
   const showResults = !isFetching && transactions.length > 0 && activeChainId;
+
+  // Auto-scroll to results when they become available
+  useEffect(() => {
+    if (showResults && resultsRef.current) {
+      resultsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [showResults]);
 
   return (
     <div className="flex w-full flex-col sm:min-h-screen overflow-x-hidden">
@@ -228,7 +236,7 @@ export function Dashboard({ chains }: DashboardProps) {
       </section>
 
       {/* Results Section */}
-      <section className="sm:flex-1">
+      <section ref={resultsRef} className="sm:flex-1">
         <div className="mx-auto max-w-7xl px-6 py-8">
           {isFetching && (
             <TransactionTableSkeleton />
