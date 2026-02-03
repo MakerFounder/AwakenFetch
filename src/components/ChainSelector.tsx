@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import type { ChainInfo } from "@/types";
 
 function ChainIcon({ chainId, chainName }: { chainId: string; chainName: string }) {
@@ -43,6 +43,14 @@ export function ChainSelector({ chains, selectedChainId, onChainChange, disabled
     const containerRef = useRef<HTMLDivElement>(null);
 
     const selectedChain = chains.find(c => c.chainId === selectedChainId);
+
+    // Sort: enabled chains first, then coming soon chains
+    const sortedChains = useMemo(() => {
+        return [...chains].sort((a, b) => {
+            if (a.comingSoon === b.comingSoon) return 0;
+            return a.comingSoon ? 1 : -1;
+        });
+    }, [chains]);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -109,21 +117,32 @@ export function ChainSelector({ chains, selectedChainId, onChainChange, disabled
                 </svg>
             </button>
             {isOpen && (
-                <div className={`absolute z-50 mt-1 rounded-xl border border-border bg-background shadow-lg max-h-60 overflow-auto ${isInline ? "left-0 min-w-[220px]" : "w-full"}`}>
+                <div className={`absolute z-[100] mt-1 rounded-xl border border-border bg-background shadow-lg max-h-60 overflow-auto ${isInline ? "left-0 min-w-[220px]" : "w-full"}`}>
                     <ul role="listbox">
-                        {chains.map(chain => (
+                        {sortedChains.map(chain => (
                             <li
                                 key={chain.chainId}
                                 onClick={() => {
+                                    if (chain.comingSoon) return;
                                     onChainChange(chain.chainId);
                                     setIsOpen(false);
                                 }}
-                                className="cursor-pointer p-3 hover:bg-surface flex items-center gap-2.5 transition-colors"
+                                className={`p-3 flex items-center gap-2.5 transition-colors ${
+                                    chain.comingSoon 
+                                        ? "opacity-50 cursor-not-allowed" 
+                                        : "cursor-pointer hover:bg-surface"
+                                }`}
                                 role="option"
                                 aria-selected={selectedChainId === chain.chainId}
+                                aria-disabled={chain.comingSoon}
                             >
                                 <ChainIcon chainId={chain.chainId} chainName={chain.chainName} />
-                                <span>{chain.chainName}</span>
+                                <span className={chain.comingSoon ? "text-muted" : ""}>{chain.chainName}</span>
+                                {chain.comingSoon && (
+                                    <span className="ml-auto text-[10px] font-medium text-accent/70 bg-accent/10 px-2 py-0.5 rounded-full">
+                                        Soon
+                                    </span>
+                                )}
                             </li>
                         ))}
                     </ul>

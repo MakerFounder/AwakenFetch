@@ -58,6 +58,11 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched, onLoadingC
     [chains],
   );
 
+  const displayChains = useMemo(
+    () => chains,
+    [chains],
+  );
+
   const runValidation = useCallback(
     (addr: string, chainId: string): boolean => {
       if (!addr.trim() || !chainId) {
@@ -117,11 +122,11 @@ export function WalletForm({ chains, onSubmit, onTransactionsFetched, onLoadingC
       className="flex w-full flex-col gap-4"
     >
       {/* Inline form bar */}
-      <div className="relative flex flex-col sm:flex-row sm:items-stretch rounded-2xl border border-border bg-background shadow-sm transition-all hover:border-border-hover hover:shadow-md">
+      <div className="flex flex-col sm:flex-row sm:items-stretch rounded-2xl border border-border bg-background shadow-sm transition-all hover:border-border-hover hover:shadow-md">
         {/* Chain selector segment */}
-        <div className="border-b sm:border-b-0 sm:border-r border-border flex items-center max-sm:justify-center">
+        <div className="border-b sm:border-b-0 sm:border-r border-border flex items-center max-sm:justify-center overflow-visible">
           <ChainSelector
-            chains={enabledChains}
+            chains={displayChains}
             selectedChainId={selectedChainId}
             onChainChange={handleChainChange}
             disabled={isLoading}

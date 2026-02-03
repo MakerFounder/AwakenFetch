@@ -852,13 +852,14 @@ describe("variational adapter registration", () => {
     expect(adapter?.perpsCapable).toBe(true);
   });
 
-  it("appears in available chains", async () => {
+  it("appears in available chains as coming soon", async () => {
     const { getAvailableChains } = await import("@/lib/adapters");
     const chains = getAvailableChains();
     const variational = chains.find((c) => c.chainId === "variational");
     expect(variational).toBeDefined();
     expect(variational?.chainName).toBe("Variational");
-    expect(variational?.enabled).toBe(true);
+    expect(variational?.enabled).toBe(false);
+    expect(variational?.comingSoon).toBe(true);
     expect(variational?.perpsCapable).toBe(true);
   });
 });

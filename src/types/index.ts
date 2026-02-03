@@ -103,4 +103,6 @@ export interface ChainInfo {
   enabled: boolean;
   /** Whether this chain/protocol supports perpetuals trading. */
   perpsCapable: boolean;
+  /** Whether this chain is coming soon (not yet available). */
+  comingSoon?: boolean;
 }

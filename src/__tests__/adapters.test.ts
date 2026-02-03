@@ -110,6 +110,7 @@ describe("ChainAdapterRegistry (class)", () => {
       ticker: "RADIX",
       enabled: true,
       perpsCapable: false,
+      comingSoon: false,
     });
   });
 

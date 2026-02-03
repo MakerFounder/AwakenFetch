@@ -115,6 +115,7 @@ export function Dashboard({ chains }: DashboardProps) {
   }, [activeChainId, chains]);
 
   const enabledChains = useMemo(() => chains.filter(c => c.enabled), [chains]);
+  const comingSoonChains = useMemo(() => chains.filter(c => c.comingSoon), [chains]);
   const showResults = !isFetching && transactions.length > 0 && activeChainId;
 
   return (
@@ -206,6 +207,18 @@ export function Dashboard({ chains }: DashboardProps) {
                 >
                   <ChainIcon chainId={chain.chainId} chainName={chain.chainName} size="md" />
                   <span className="text-sm font-medium text-muted">{chain.chainName}</span>
+                </div>
+              ))}
+              {comingSoonChains.map((chain) => (
+                <div
+                  key={chain.chainId}
+                  className="flex items-center gap-2 rounded-full border border-border/40 bg-surface/40 px-3 py-1.5 opacity-60"
+                >
+                  <ChainIcon chainId={chain.chainId} chainName={chain.chainName} size="md" />
+                  <span className="text-sm font-medium text-muted">{chain.chainName}</span>
+                  <span className="text-[10px] font-medium text-accent/70 bg-accent/10 px-1.5 py-0.5 rounded-full">
+                    Soon
+                  </span>
                 </div>
               ))}
               <span className="text-sm font-medium text-accent/60 px-2 py-1.5">+ more coming</span>

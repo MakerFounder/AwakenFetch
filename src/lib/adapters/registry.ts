@@ -47,8 +47,9 @@ export class ChainAdapterRegistry {
       chainId: a.chainId,
       chainName: a.chainName,
       ticker: a.chainId.toUpperCase(),
-      enabled: true,
+      enabled: a.chainId !== "variational",
       perpsCapable: a.perpsCapable ?? false,
+      comingSoon: a.chainId === "variational",
     }));
   }
 
